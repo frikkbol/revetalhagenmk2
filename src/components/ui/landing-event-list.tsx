@@ -31,7 +31,7 @@ const LandingEventList = ({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 md:px-10",
+        "mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 md:px-10",
         className,
       )}
       {...props}
@@ -77,7 +77,7 @@ const LandingEventList = ({
                     <MapPinIcon /> {event.location}
                   </p>
                 )}
-                <CardAction className="mt-auto pt-2.5 justify-self-start">
+                <CardAction className="mt-auto justify-self-start pt-2.5">
                   <Button variant="secondary">
                     Se mer <ArrowRightIcon />
                   </Button>
