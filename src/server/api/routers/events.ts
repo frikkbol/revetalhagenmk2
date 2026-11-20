@@ -49,19 +49,22 @@ export const eventsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const created = await ctx.db.insert(event).values({
-        title: input.title,
-        end: input.end,
-        start: input.start,
-        author: ctx.session.user.id,
-        updatedAt: new Date(),
-        location: input.location,
-        image: input.image && input.image.length > 0 ? input.image : null,
-        description: input.content,
-        preview: input.preview,
-      });
+      const created = await ctx.db
+        .insert(event)
+        .values({
+          title: input.title,
+          end: input.end,
+          start: input.start,
+          author: ctx.session.user.id,
+          updatedAt: new Date(),
+          location: input.location,
+          image: input.image && input.image.length > 0 ? input.image : null,
+          description: input.content,
+          preview: input.preview,
+        })
+        .returning();
 
-      return created;
+      return created[0];
     }),
   getById: publicProcedure
     .input(

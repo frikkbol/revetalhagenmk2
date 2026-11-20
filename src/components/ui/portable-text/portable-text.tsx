@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useUploadThing } from "@/lib/uploadthing";
 import type {
   PortableTextBlock,
@@ -203,9 +204,16 @@ const renderBlock: RenderBlockFunction = (props) => {
 type TextEditorProps = {
   value?: Array<PortableTextBlock>;
   onChange?: (value?: Array<PortableTextBlock>) => void;
+  editorClassName?: string;
+  stickyToolbar?: boolean;
 };
 
-function TextEditor({ value, onChange }: TextEditorProps) {
+function TextEditor({
+  value,
+  onChange,
+  editorClassName,
+  stickyToolbar = false,
+}: TextEditorProps) {
   return (
     <div>
       <EditorProvider
@@ -222,9 +230,19 @@ function TextEditor({ value, onChange }: TextEditorProps) {
           }}
         />
         <div className="flex flex-col gap-2.5">
-          <Toolbar />
+          <div
+            className={cn(
+              stickyToolbar &&
+                "bg-background/95 sticky top-20 z-10 -mx-1 rounded-xl border px-2 py-2 backdrop-blur-sm",
+            )}
+          >
+            <Toolbar />
+          </div>
           <PortableTextEditable
-            className="border-border min-h-32 rounded-xl border p-5"
+            className={cn(
+              "border-border bg-background min-h-32 rounded-xl border p-5 focus:outline-none",
+              editorClassName,
+            )}
             renderBlock={renderBlock}
             renderStyle={renderStyle}
             renderDecorator={renderDecorator}

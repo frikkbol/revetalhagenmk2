@@ -1,14 +1,21 @@
 "use client";
 
 import { formatEventDateRange } from "@/lib/event-date-format";
+import { authClient } from "@/server/auth/client";
 import { api } from "@/trpc/react";
 import { format, startOfWeek } from "date-fns";
 import { nb } from "date-fns/locale";
-import { ArrowRight, CalendarDays, ClockIcon, MapPin } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  ClockIcon,
+  MapPin,
+  PlusIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { Button } from "./button";
 import { Card } from "./card";
-import EventDialog from "./event-dialog";
 
 type EventItem = {
   id: number;
@@ -116,6 +123,7 @@ function EventListSkeleton() {
 }
 
 function EventCalendar() {
+  const { data: session } = authClient.useSession();
   const from = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), []);
   const {
     data: events,
@@ -142,7 +150,15 @@ function EventCalendar() {
 
   return (
     <div className="flex w-full flex-col gap-8">
-      <EventDialog />
+      {session?.user.role === "admin" && (
+        <div>
+          <Button asChild className="w-full md:w-fit">
+            <Link href="/arrangementer/ny">
+              <PlusIcon /> Opprett arrangement
+            </Link>
+          </Button>
+        </div>
+      )}
 
       {isPending && <EventListSkeleton />}
 

@@ -1,17 +1,22 @@
 "use client";
 
-import { Form, FormField } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import type { event } from "@/server/db/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { PortableTextBlock } from "@portabletext/editor";
-import "quill/dist/quill.snow.css";
 import React from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { DatetimePicker } from "../ui/datetime-picker";
 import { ImageUpload } from "../ui/image-upload";
-import { Label } from "../ui/label";
 import TextEditor from "../ui/portable-text/portable-text";
 import { Textarea } from "../ui/textarea";
 
@@ -28,27 +33,45 @@ const formSchema = z.object({
   location: z.string().optional(),
   preview: z.string().optional(),
 });
+
+export type EventFormValues = z.infer<typeof formSchema>;
+
 type ChildType = {
   canSubmit: boolean;
+  isDirty: boolean;
 };
+
 interface CreateEventFormProps {
   children?: (props: ChildType) => React.ReactNode;
-  onSubmit?: (data: z.infer<typeof formSchema>) => void;
+  onSubmit?: (data: EventFormValues) => void;
   defaultValues?: typeof event.$inferSelect;
+  formId?: string;
+}
+
+function parsePortableText(raw?: string): PortableTextBlock[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as PortableTextBlock[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 function CreateEventForm({
   defaultValues,
   children,
   onSubmit,
+  formId,
 }: CreateEventFormProps) {
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<EventFormValues>({
     resolver: zodResolver(formSchema),
+    mode: "onChange",
     defaultValues: {
       title: defaultValues?.title ?? "",
       content: defaultValues?.description ?? "[]",
-      start: defaultValues?.start ?? new Date(),
-      end: defaultValues?.end ?? new Date(),
+      start: defaultValues?.start ? new Date(defaultValues.start) : new Date(),
+      end: defaultValues?.end ? new Date(defaultValues.end) : new Date(),
       image: defaultValues?.image ?? "",
       location: defaultValues?.location ?? "",
       preview: defaultValues?.preview ?? "",
@@ -56,115 +79,144 @@ function CreateEventForm({
   });
 
   return (
-    <div>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit((values) => onSubmit?.(values))}
-          className="flex flex-col gap-2.5"
-        >
-          <FormField
-            name="title"
-            control={form.control}
-            render={({ field }) => (
-              <div className="flex w-full flex-col gap-1">
-                <Label>Tittel</Label>
-                <Input {...field} placeholder="Fingerhekling med..." />
-              </div>
-            )}
-          />
-
-          <FormField
-            name="image"
-            control={form.control}
-            render={({ field }) => (
-              <div className="flex w-full flex-col gap-1">
-                <Label>Forsidebilde (valgfritt)</Label>
-                <ImageUpload
-                  value={field.value}
-                  onChange={field.onChange}
+    <Form {...form}>
+      <form
+        id={formId}
+        onSubmit={form.handleSubmit((values) => onSubmit?.(values))}
+        className="flex flex-col gap-6"
+      >
+        <FormField
+          name="title"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tittel</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder="Fingerhekling med..."
+                  className="h-12 text-lg font-medium"
                 />
-              </div>
-            )}
-          />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
+        <FormField
+          name="image"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Forsidebilde (valgfritt)</FormLabel>
+              <FormControl>
+                <ImageUpload value={field.value} onChange={field.onChange} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
-            name="content"
+            name="start"
             control={form.control}
             render={({ field }) => (
-              <div className="flex w-full flex-col gap-1">
-                <Label>Beskrivelse</Label>
+              <FormItem>
+                <FormLabel>Start</FormLabel>
+                <FormControl>
+                  <DatetimePicker
+                    {...field}
+                    format={[
+                      ["days", "months", "years"],
+                      ["hours", "minutes"],
+                    ]}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            name="end"
+            control={form.control}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Slutt</FormLabel>
+                <FormControl>
+                  <DatetimePicker
+                    {...field}
+                    format={[
+                      ["days", "months", "years"],
+                      ["hours", "minutes"],
+                    ]}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          name="location"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Sted (valgfritt)</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="Revetalhagen..." />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          name="preview"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Kort oppsummering (valgfritt)</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  rows={3}
+                  placeholder="Kort oppsummering av arrangementet som vises i oversikten..."
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          name="content"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Beskrivelse</FormLabel>
+              <FormControl>
                 <TextEditor
+                  stickyToolbar
+                  editorClassName="min-h-[320px]"
                   onChange={(value) => {
                     field.onChange(JSON.stringify(value ?? []));
                   }}
-                  value={JSON.parse(field.value ?? "[]") as PortableTextBlock[]}
+                  value={parsePortableText(field.value)}
                 />
-              </div>
-            )}
-          />
-          <FormField
-            name="preview"
-            control={form.control}
-            render={({ field }) => (
-              <div className="flex w-full flex-col gap-1">
-                <Label>Kort oppsummering av beskrivelse</Label>
-                <Textarea {...field} />
-              </div>
-            )}
-          />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          <div className="flex w-fit flex-row flex-nowrap gap-5">
-            <FormField
-              name="start"
-              control={form.control}
-              render={({ field }) => (
-                <div className="flex w-full flex-col gap-1">
-                  <Label>Start</Label>
-                  <DatetimePicker
-                    {...field}
-                    format={[
-                      ["days", "months", "years"],
-                      ["hours", "minutes"],
-                    ]}
-                  />
-                  {/* <DateTimePicker className="col-start-1 w-full" {...field} /> */}
-                </div>
-              )}
-            />
-            <FormField
-              name="end"
-              control={form.control}
-              render={({ field }) => (
-                <div className="flex w-full flex-col gap-1">
-                  <Label>Slutt</Label>
-                  {/* <DateTimePicker className="w-full" {...field} /> */}
-                  <DatetimePicker
-                    {...field}
-                    format={[
-                      ["days", "months", "years"],
-                      ["hours", "minutes"],
-                    ]}
-                  />
-                </div>
-              )}
-            />
-          </div>
-          <FormField
-            name="location"
-            control={form.control}
-            render={({ field }) => (
-              <div className="flex w-full flex-col gap-1">
-                <Label>Sted</Label>
-                <Input {...field} placeholder="Revetal..." />
-              </div>
-            )}
-          />
-          {children?.({
-            canSubmit: form.formState.isValid && form.formState.isDirty,
-          })}
-        </form>
-      </Form>
-    </div>
+        {children?.({
+          canSubmit: form.formState.isValid,
+          isDirty: form.formState.isDirty,
+        })}
+      </form>
+    </Form>
   );
 }
 

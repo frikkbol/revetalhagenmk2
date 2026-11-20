@@ -1,18 +1,16 @@
 "use client";
 import { authClient } from "@/server/auth/client";
 import { PlusIcon } from "lucide-react";
+import Link from "next/link";
 import { parseAsString, parseAsStringEnum, useQueryStates } from "nuqs";
-import { useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import NewsDialog from "../ui/news-dialog";
 
 export enum TimeDirection {
   NEWEST = "nyeste",
   OLDEST = "eldste",
 }
 function NewsFilters() {
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [filters, setFilters] = useQueryStates({
     orderBy: parseAsStringEnum<TimeDirection>(
       Object.values(TimeDirection),
@@ -96,12 +94,10 @@ function NewsFilters() {
       />
       {session?.user?.role === "admin" && (
         <div className="flex w-full justify-end">
-          <NewsDialog
-            open={createDialogOpen}
-            onOpenChange={setCreateDialogOpen}
-          />
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <PlusIcon /> Opprett
+          <Button asChild>
+            <Link href="/nyheter/ny">
+              <PlusIcon /> Opprett
+            </Link>
           </Button>
         </div>
       )}

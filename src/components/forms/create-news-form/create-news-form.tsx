@@ -1,13 +1,19 @@
 "use client";
 
-import { Form, FormControl, FormField, FormLabel } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Input } from "@/components/ui/input";
 import TextEditor from "@/components/ui/portable-text/portable-text";
 import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { PortableTextBlock } from "@portabletext/editor";
-import "quill/dist/quill.snow.css";
 import React from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -18,84 +24,132 @@ const formSchema = z.object({
   image: z.string().optional(),
   preview: z.string().optional(),
 });
+
+export type NewsFormValues = z.infer<typeof formSchema>;
+
 type ChildType = {
   canSubmit: boolean;
+  isDirty: boolean;
 };
+
 interface CreateNewsFormProps {
   children?: (props: ChildType) => React.ReactNode;
-  defaultValues?: z.infer<typeof formSchema>;
-  onSubmit?: (data: z.infer<typeof formSchema>) => void;
+  defaultValues?: NewsFormValues;
+  onSubmit?: (data: NewsFormValues) => void;
+  formId?: string;
 }
+
+function parsePortableText(raw?: string): PortableTextBlock[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as PortableTextBlock[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 function CreateNewsForm({
   children,
   onSubmit,
   defaultValues,
+  formId,
 }: CreateNewsFormProps) {
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<NewsFormValues>({
     resolver: zodResolver(formSchema),
+    mode: "onChange",
     defaultValues: {
-      ...defaultValues,
+      title: defaultValues?.title ?? "",
+      content: defaultValues?.content ?? "[]",
+      image: defaultValues?.image ?? "",
+      preview: defaultValues?.preview ?? "",
     },
   });
 
   return (
-    <div>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit((values) => onSubmit?.(values))}
-          className="flex flex-col gap-2.5"
-        >
-          <FormField
-            name="title"
-            control={form.control}
-            render={({ field }) => (
-              <Input placeholder="Overskrift" {...field} />
-            )}
-          />
-          <FormField
-            name="image"
-            control={form.control}
-            render={({ field }) => (
-              <div className="flex flex-col gap-1">
-                <FormLabel>Forsidebilde (valgfritt)</FormLabel>
+    <Form {...form}>
+      <form
+        id={formId}
+        onSubmit={form.handleSubmit((values) => onSubmit?.(values))}
+        className="flex flex-col gap-6"
+      >
+        <FormField
+          name="title"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Overskrift</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Skriv en engasjerende overskrift..."
+                  className="h-12 text-lg font-medium"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          name="image"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Forsidebilde (valgfritt)</FormLabel>
+              <FormControl>
                 <ImageUpload value={field.value} onChange={field.onChange} />
-              </div>
-            )}
-          />
-          <FormField
-            name="content"
-            control={form.control}
-            render={({ field }) => (
-              <div className="flex flex-col">
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          name="preview"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Kort oppsummering (valgfritt)</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  rows={3}
+                  placeholder="Kort oppsummering av artikkelen som vises i oversikten og nyhetsbrevet..."
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          name="content"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Innhold</FormLabel>
+              <FormControl>
                 <TextEditor
+                  stickyToolbar
+                  editorClassName="min-h-[360px]"
                   onChange={(value) => {
                     field.onChange(JSON.stringify(value ?? []));
                   }}
-                  value={JSON.parse(field.value ?? "[]") as PortableTextBlock[]}
+                  value={parsePortableText(field.value)}
                 />
-              </div>
-            )}
-          />
-          <FormField
-            name="preview"
-            control={form.control}
-            render={({ field }) => (
-              <div className="flex flex-col gap-1">
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    placeholder="Kort oppsummering av innholdet"
-                  />
-                </FormControl>
-              </div>
-            )}
-          />
-          {children?.({
-            canSubmit: form.formState.isValid && form.formState.isDirty,
-          })}
-        </form>
-      </Form>
-    </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {children?.({
+          canSubmit: form.formState.isValid,
+          isDirty: form.formState.isDirty,
+        })}
+      </form>
+    </Form>
   );
 }
 
