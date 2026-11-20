@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import type { booking } from "@/server/db/schema";
 import {
   Stepper,
@@ -17,7 +16,7 @@ type BookingStatusProgressProps = {
 const steps: { step: number; title: string; description: string }[] = [
   {
     step: 1,
-    title: "Forespørsel motatt",
+    title: "Forespørsel mottatt",
     description:
       "Vi har mottatt bookingforespørselen din, og et frivillig medlem vil ta en titt på den i løpet av de neste dagene.",
   },
@@ -40,7 +39,7 @@ const StatusStepMap: Partial<
 > = {
   pending: 1,
   confirmed: 2,
-  completed: 3,
+  completed: 4,
 };
 
 function BookingStatusProgress({ status }: BookingStatusProgressProps) {
@@ -49,7 +48,7 @@ function BookingStatusProgress({ status }: BookingStatusProgressProps) {
       <Stepper
         defaultValue={1}
         orientation="vertical"
-        value={(StatusStepMap[status] ?? 0) + 1}
+        value={StatusStepMap[status] ?? 1}
       >
         {steps.map(({ step, description, title }) => (
           <StepperItem
@@ -72,36 +71,6 @@ function BookingStatusProgress({ status }: BookingStatusProgressProps) {
           </StepperItem>
         ))}
       </Stepper>
-    </div>
-  );
-}
-
-function Information({
-  columns,
-}: {
-  columns: { title: string; value: string }[];
-}) {
-  return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 md:flex-row">
-      {columns.map((column, index) => (
-        <div key={index} className="flex flex-1 flex-col text-center">
-          <span className="text-sm font-semibold">{column.title}</span>
-          <span className="text-lg">{column.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function StatusBead({ active, number }: { active: boolean; number: number }) {
-  return (
-    <div
-      className={cn(
-        "bg-card border-border flex size-20 items-center justify-center rounded-full border text-2xl font-bold",
-        active ? "bg-primary text-primary-foreground" : undefined,
-      )}
-    >
-      <span>{number}</span>
     </div>
   );
 }

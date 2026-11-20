@@ -9,6 +9,7 @@ import { api } from "@/trpc/server";
 import type { PortableTextBlock } from "@portabletext/react";
 import { HomeIcon } from "lucide-react";
 import { headers } from "next/headers";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { formatEventDateRange } from "@/lib/event-date-format";
 
@@ -70,6 +71,26 @@ async function Page({ params }: PageProps) {
           <EventContextMenu event={data?.event} />
         )}
       </SlideAnimation>
+      {data.event.image && (
+        <SlideAnimation
+          direction="up"
+          className="h-64 w-full md:h-96"
+          transition={{
+            delay: 0.3,
+            duration: 0.7,
+          }}
+        >
+          <div className="h-full w-full overflow-hidden rounded-[60px]">
+            <Image
+              src={data.event.image}
+              alt={data.event.title ?? "Arrangement"}
+              width={2000}
+              height={1200}
+              className="bg-secondary h-full w-full object-cover object-center"
+            />
+          </div>
+        </SlideAnimation>
+      )}
       <div className="flex h-fit w-full flex-col gap-5 md:h-fit md:min-h-full md:flex-row">
         <SlideAnimation
           direction="up"

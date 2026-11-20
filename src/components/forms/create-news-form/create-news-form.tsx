@@ -1,6 +1,7 @@
 "use client";
 
 import { Form, FormControl, FormField, FormLabel } from "@/components/ui/form";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { Input } from "@/components/ui/input";
 import TextEditor from "@/components/ui/portable-text/portable-text";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +50,16 @@ function CreateNewsForm({
             control={form.control}
             render={({ field }) => (
               <Input placeholder="Overskrift" {...field} />
+            )}
+          />
+          <FormField
+            name="image"
+            control={form.control}
+            render={({ field }) => (
+              <div className="flex flex-col gap-1">
+                <FormLabel>Forsidebilde (valgfritt)</FormLabel>
+                <ImageUpload value={field.value} onChange={field.onChange} />
+              </div>
             )}
           />
           <FormField

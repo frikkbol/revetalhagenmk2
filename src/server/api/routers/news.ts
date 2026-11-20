@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { adminProcedure, createTRPCRouter, publicProcedure } from "../trpc";
 import { news, newsletterSubscription, user } from "@/server/db/schema";
+import { deleteRemovedImages } from "@/server/uploadthing";
 import { eq } from "drizzle-orm";
 import { sendNewsletter } from "@/server/email/newsletter";
 
@@ -101,6 +102,7 @@ export const newsRouter = createTRPCRouter({
           name: input.title,
           author: ctx.session.user.id,
           preview: input.preview,
+          image: input.image && input.image.length > 0 ? input.image : null,
         })
         .returning();
 
@@ -137,6 +139,13 @@ export const newsRouter = createTRPCRouter({
         throw new Error("News not found");
       }
 
+      if (deleted[0]) {
+        await deleteRemovedImages({
+          previousImage: deleted[0].image,
+          previousContent: deleted[0].content,
+        });
+      }
+
       return deleted[0];
     }),
 
@@ -151,18 +160,35 @@ export const newsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.news.findFirst({
+        where: eq(news.id, input.id),
+      });
+
+      const nextImage =
+        input.image && input.image.length > 0 ? input.image : null;
+
       const updated = await ctx.db
         .update(news)
         .set({
           name: input.title,
           content: input.content,
           preview: input.preview,
+          image: nextImage,
         })
         .where(eq(news.id, input.id))
         .returning();
 
       if (updated.length === 0) {
         throw new Error("News not found");
+      }
+
+      if (existing) {
+        await deleteRemovedImages({
+          previousImage: existing.image,
+          nextImage,
+          previousContent: existing.content,
+          nextContent: input.content,
+        });
       }
 
       return updated[0];

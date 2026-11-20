@@ -29,12 +29,11 @@ function BookingWizardForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      itemType: queries.type ?? undefined,
+      itemType: queries.type ?? "",
     },
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    console.log(data);
     void setQueries({
       type: data.itemType,
     });
@@ -63,7 +62,7 @@ function BookingWizardForm() {
               <FormControl>
                 <Select
                   onValueChange={field.onChange}
-                  defaultValue={field.value}
+                  value={field.value ?? ""}
                 >
                   <SelectTrigger className="bg-card/50 w-full">
                     <SelectValue placeholder="Gjenstandstype" />
@@ -101,10 +100,12 @@ function BookingWizardForm() {
                 className="overflow-hidden"
               >
                 <Button
+                  type="button"
                   variant="secondary"
                   className="w-fit"
                   onClick={(e) => {
                     e.preventDefault();
+                    form.reset({ itemType: "" });
                     void setQueries(null);
                   }}
                 >

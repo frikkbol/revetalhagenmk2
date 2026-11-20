@@ -2,7 +2,14 @@
 import type { bookingFormSchema } from "@/lib/schemas/booking-form-schema";
 import { api } from "@/trpc/react";
 import { format } from "date-fns";
-import { BedDouble, ClockIcon, Loader, ShoppingCartIcon } from "lucide-react";
+import {
+  BedDouble,
+  ClockIcon,
+  Loader,
+  ShoppingCartIcon,
+  TriangleAlertIcon,
+  UsersIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import type { z } from "zod";
@@ -40,6 +47,8 @@ function SubmitBookingDialog({
     mutateAsync: bookItem,
     isPending,
     status,
+    error,
+    reset,
   } = api.booking.createBooking.useMutation();
 
   const handleBookItem = async () => {
@@ -53,8 +62,16 @@ function SubmitBookingDialog({
         toast.error("Noe gikk galt, og bookingen kunne ikke opprettes.");
       });
   };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && status === "error") {
+      reset();
+    }
+    onOpenChange?.(nextOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Bekreft booking</DialogTitle>
@@ -73,6 +90,12 @@ function SubmitBookingDialog({
               <Badge variant="outline">
                 <BedDouble /> {itemName}
               </Badge>
+              {booking.personCount != null && (
+                <Badge variant="outline">
+                  <UsersIcon /> {booking.personCount}{" "}
+                  {booking.personCount === 1 ? "person" : "personer"}
+                </Badge>
+              )}
             </div>
             <Separator />
             <div className="flex flex-col gap-2.5">
@@ -125,6 +148,24 @@ function SubmitBookingDialog({
         )}
 
         {status === "pending" && <Loader className="animate-spin" />}
+        {status === "error" && (
+          <div className="flex flex-col items-center justify-center gap-3 text-center">
+            <TriangleAlertIcon className="text-destructive size-8" />
+            <p className="text-destructive text-sm">
+              {error?.message ||
+                "Noe gikk galt, og bookingen kunne ikke opprettes."}
+            </p>
+            <Button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleBookItem();
+              }}
+            >
+              Prøv igjen
+            </Button>
+          </div>
+        )}
         {status === "success" && (
           <>
             <div className="flex flex-col items-center justify-center gap-2.5">

@@ -25,6 +25,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Separator } from "./separator";
 import { api } from "@/trpc/react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 type EditItemPriceDialogProps = {
@@ -62,15 +63,17 @@ function EditItemPriceDialog({
   });
   const { mutateAsync, isPending } = api.booking.updateItem.useMutation();
   const [open, setOpen] = useState(false);
+  const router = useRouter();
 
   const [price, memberDiscount, personPrice] = form.watch([
     "price",
     "memberDiscount",
     "personPrice",
   ]);
+  const effectivePersonPrice =
+    type === ItemType.OVERNATTING ? (personPrice ?? 0) : 0;
 
   const handleSubmit = async (data: z.infer<typeof formSchema>) => {
-    console.log("Form submitted with data:", data);
     try {
       await mutateAsync({
         id,
@@ -78,8 +81,9 @@ function EditItemPriceDialog({
         memberDiscount: data.memberDiscount,
         personPrice: data.personPrice,
       });
-      toast("Prisen er oppdatert! Last inn siden på nytt for å se endringene.");
+      toast("Prisen er oppdatert!");
       setOpen(false);
+      router.refresh();
     } catch {
       toast("Prisen kunne ikke oppdateres");
     }
@@ -171,14 +175,14 @@ function EditItemPriceDialog({
               <div>
                 <h2>Totalpris</h2>
                 <span className="text-card-foreground text-2xl font-bold transition-all">
-                  {(price + (personPrice ?? 0)).toFixed(2)} kr
+                  {(price + effectivePersonPrice).toFixed(2)} kr
                 </span>
               </div>
               <div>
                 <h2>Medlemspris</h2>
                 <span className="text-card-foreground text-2xl font-bold transition-all">
                   {(
-                    ((price + (personPrice ?? 0)) * (100 - memberDiscount)) /
+                    ((price + effectivePersonPrice) * (100 - memberDiscount)) /
                     100
                   ).toFixed(2)}{" "}
                   kr

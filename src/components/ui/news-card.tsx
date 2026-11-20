@@ -27,11 +27,22 @@ interface NewsCardProps {
   title: string;
   description: string;
   date: Date;
+  image?: string | null;
 }
-function NewsCard({ author, title, description, date }: NewsCardProps) {
+function NewsCard({ author, title, description, date, image }: NewsCardProps) {
   const [open, setOpen] = useState(false);
   return (
-    <Card className="h-full gap-5">
+    <Card className="h-full gap-5 overflow-hidden">
+      {image && (
+        <div className="-mt-6 h-44 w-full overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image}
+            alt={title}
+            className="bg-secondary h-full w-full object-cover object-center"
+          />
+        </div>
+      )}
       <div className="flex w-auto items-center gap-2.5 px-6">
         <div
           onMouseEnter={() => setOpen(true)}

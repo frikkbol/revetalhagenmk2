@@ -73,9 +73,13 @@ async function Page({ params }: PageProps) {
         >
           <div className="h-full w-full overflow-hidden rounded-[60px]">
             <Image
-              src="/images/hagen_wide.jpg"
+              src={
+                data?.news.image && data.news.image.length > 0
+                  ? data.news.image
+                  : "/images/hagen_wide.jpg"
+              }
               className="bg-secondary h-full w-full object-cover object-center"
-              alt="Hagen"
+              alt={data?.news.name ?? "Hagen"}
               width={2000}
               height={2000}
             />

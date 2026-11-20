@@ -1,3 +1,6 @@
+"use client";
+
+import { useUploadThing } from "@/lib/uploadthing";
 import type {
   PortableTextBlock,
   RenderAnnotationFunction,
@@ -22,22 +25,23 @@ import {
   ImageIcon,
   Italic,
   LinkIcon,
+  Loader2Icon,
   Quote,
   RemoveFormatting,
+  Trash2Icon,
   Underline,
 } from "lucide-react";
+import { useRef } from "react";
+import { toast } from "sonner";
 import { Button } from "../button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip";
 import PortableH1 from "./render-components/h1";
 import PortableH2 from "./render-components/h2";
 import PortableH3 from "./render-components/h3";
-import PortableQuote from "./render-components/quote";
 import PortableLink from "./render-components/link";
-import { toast } from "sonner";
+import PortableQuote from "./render-components/quote";
 
-// ...
 const schemaDefinition = defineSchema({
-  // Decorators are simple marks that don't hold any data
   decorators: [
     { name: "strong", title: "Uthevet", icon: <Bold /> },
     { name: "em", title: "Kursiv", icon: <Italic /> },
@@ -50,8 +54,6 @@ const schemaDefinition = defineSchema({
       value: "right",
     },
   ],
-  // Styles apply to entire text blocks
-  // There's always a 'normal' style that can be considered the paragraph style
   styles: [
     { name: "normal", title: "Normal", icon: <RemoveFormatting /> },
     { name: "h1", title: "Tittel 1", icon: <Heading1 /> },
@@ -59,11 +61,6 @@ const schemaDefinition = defineSchema({
     { name: "h3", title: "Tittel 3", icon: <Heading3 /> },
     { name: "blockquote", title: "Sitat", icon: <Quote /> },
   ],
-
-  // The types below are left empty for this example.
-  // See the rendering guide to learn more about each type.
-
-  // Annotations are more complex marks that can hold data (for example, hyperlinks).
   annotations: [
     {
       name: "link",
@@ -82,12 +79,19 @@ const schemaDefinition = defineSchema({
       },
     },
   ],
-  // Lists apply to entire text blocks as well (for example, bullet, numbered).
   lists: [],
-  // Inline objects hold arbitrary data that can be inserted into the text (for example, custom emoji).
   inlineObjects: [],
-  // Block objects hold arbitrary data that live side-by-side with text blocks (for example, images, code blocks, and tables).
-  blockObjects: [],
+  blockObjects: [
+    {
+      name: "image",
+      title: "Bilde",
+      fields: [
+        { name: "url", type: "string", title: "URL" },
+        { name: "alt", type: "string", title: "Alternativ tekst" },
+        { name: "fileKey", type: "string", title: "Filnøkkel" },
+      ],
+    },
+  ],
 });
 
 const renderStyle: RenderStyleFunction = (props) => {
@@ -131,13 +135,79 @@ const renderAnnotation: RenderAnnotationFunction = (props) => {
   return <>{props.children}</>;
 };
 
+function ImageBlockPreview({
+  url,
+  alt,
+  blockKey,
+}: {
+  url: string;
+  alt?: string;
+  blockKey: string;
+}) {
+  const editor = useEditor();
+
+  return (
+    <div
+      contentEditable={false}
+      className="border-border bg-muted/30 relative my-3 overflow-hidden rounded-xl border"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={alt ?? "Opplastet bilde"}
+        className="max-h-72 w-full object-contain"
+      />
+      <Button
+        type="button"
+        size="icon"
+        variant="destructive"
+        className="absolute top-2 right-2 size-8"
+        title="Fjern bilde"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          editor.send({
+            type: "delete.block",
+            at: [{ _key: blockKey }],
+          });
+        }}
+      >
+        <Trash2Icon className="size-4" />
+      </Button>
+    </div>
+  );
+}
+
+const renderBlock: RenderBlockFunction = (props) => {
+  if (props.schemaType.name === "image") {
+    const value = props.value as {
+      _key: string;
+      url?: string;
+      alt?: string;
+    };
+
+    if (value.url) {
+      return (
+        <ImageBlockPreview
+          url={value.url}
+          alt={value.alt}
+          blockKey={value._key}
+        />
+      );
+    }
+  }
+
+  return <>{props.children}</>;
+};
+
 type TextEditorProps = {
   value?: Array<PortableTextBlock>;
   onChange?: (value?: Array<PortableTextBlock>) => void;
 };
+
 function TextEditor({ value, onChange }: TextEditorProps) {
   return (
-    <div onClick={(e) => e.preventDefault()}>
+    <div>
       <EditorProvider
         initialConfig={{
           schemaDefinition,
@@ -147,7 +217,6 @@ function TextEditor({ value, onChange }: TextEditorProps) {
         <EventListenerPlugin
           on={(event) => {
             if (event.type === "mutation") {
-              console.log("CHANGING!");
               onChange?.(event.value);
             }
           }}
@@ -155,8 +224,8 @@ function TextEditor({ value, onChange }: TextEditorProps) {
         <div className="flex flex-col gap-2.5">
           <Toolbar />
           <PortableTextEditable
-            // Add an optional style to see it more easily on the page
-            className="border-border rounded-xl border p-5"
+            className="border-border min-h-32 rounded-xl border p-5"
+            renderBlock={renderBlock}
             renderStyle={renderStyle}
             renderDecorator={renderDecorator}
             renderAnnotation={renderAnnotation}
@@ -169,17 +238,55 @@ function TextEditor({ value, onChange }: TextEditorProps) {
 }
 
 function Toolbar() {
-  // useEditor provides access to the PTE
   const editor = useEditor();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Iterate over the schema (defined earlier), or manually create buttons.
+  const { startUpload, isUploading } = useUploadThing("inlineImage", {
+    onClientUploadComplete: (res) => {
+      const uploaded = res?.[0];
+      if (!uploaded?.ufsUrl) return;
+
+      editor.send({
+        type: "insert.block object",
+        blockObject: {
+          name: "image",
+          value: {
+            url: uploaded.ufsUrl,
+            alt: uploaded.name,
+            fileKey: uploaded.key,
+          },
+        },
+        placement: "auto",
+      });
+      editor.send({ type: "focus" });
+      toast.success("Bilde satt inn");
+    },
+    onUploadError: (error) => {
+      toast.error(error.message || "Kunne ikke laste opp bilde");
+    },
+  });
+
+  const handleImageSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Kun bildefiler er støttet");
+      return;
+    }
+    await startUpload([file]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const styleButtons = schemaDefinition.styles.map((style) => (
     <Tooltip key={style.name}>
       <TooltipTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           onClick={() => {
-            // Send style toggle event
             editor.send({
               type: "style.toggle",
               style: style.name,
@@ -200,9 +307,9 @@ function Toolbar() {
     <Tooltip key={decorator.name}>
       <TooltipTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           onClick={() => {
-            // Send decorator toggle event
             editor.send({
               type: "decorator.toggle",
               decorator: decorator.name,
@@ -223,25 +330,12 @@ function Toolbar() {
     <Tooltip key={annotation.name}>
       <TooltipTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           onClick={() => {
-            // const href = prompt("Skriv inn URL");
             toast.error(
               "Denne funksjonen er ikke implementert enda. Prøv igjen seinere.",
             );
-            // Send annotation toggle event
-            // editor.send({
-            //   type: "annotation.add",
-            //   annotation: {
-            //     type: "link",
-            //     value: {
-            //       href,
-            //     },
-            //   },
-            // });
-            // editor.send({
-            //   type: "focus",
-            // });
           }}
         >
           {annotation.icon}
@@ -258,6 +352,32 @@ function Toolbar() {
       {decoratorButtons}
       <div className="bg-border h-5 w-0.5" />
       {annotationButtons}
+      <div className="bg-border h-5 w-0.5" />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        disabled={isUploading}
+        onChange={(e) => void handleImageSelect(e.target.files)}
+      />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isUploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {isUploading ? (
+              <Loader2Icon className="animate-spin" />
+            ) : (
+              <ImageIcon />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Sett inn bilde</TooltipContent>
+      </Tooltip>
     </div>
   );
 }

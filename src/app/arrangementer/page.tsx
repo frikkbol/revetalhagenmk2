@@ -5,7 +5,7 @@ import { HomeIcon } from "lucide-react";
 
 async function Page() {
   return (
-    <div className="relative mx-auto flex max-w-5xl flex-col items-start justify-center gap-5 px-5 pt-24 md:px-10 md:pt-36">
+    <div className="relative mx-auto flex max-w-5xl flex-col items-start gap-6 px-5 pt-24 pb-16 md:px-10 md:pt-36">
       <DynamicBreadcrumbs
         className="mt-5"
         items={[
@@ -13,32 +13,36 @@ async function Page() {
           { href: "/arrangementer", label: "Arrangementer" },
         ]}
       />
-      <h1 className="text-foreground flex w-fit flex-row flex-wrap justify-start gap-x-2 text-center text-4xl leading-12 md:gap-5 md:text-6xl md:leading-20">
-        Hva
-        <SlideAnimation
-          direction="right"
-          className="text-secondary-foreground bg-secondary w-fit overflow-hidden rounded-3xl px-2"
-          transition={{
-            delay: 0.4,
-            duration: 0.3,
-          }}
-        >
+      <div className="flex flex-col gap-3">
+        <h1 className="text-foreground flex w-fit flex-row flex-wrap justify-start gap-x-2 text-left text-4xl leading-12 md:gap-4 md:text-6xl md:leading-20">
+          Hva
           <SlideAnimation
-            direction="up"
-            className=""
+            direction="right"
+            className="text-secondary-foreground bg-secondary w-fit overflow-hidden rounded-3xl px-3"
             transition={{
-              delay: 0.7,
+              delay: 0.4,
+              duration: 0.3,
             }}
           >
-            skjer
+            <SlideAnimation
+              direction="up"
+              className=""
+              transition={{
+                delay: 0.7,
+              }}
+            >
+              skjer
+            </SlideAnimation>
           </SlideAnimation>
-        </SlideAnimation>
-        i Revetalhagen?
-      </h1>
-      <div className="relative flex w-full flex-0 flex-col items-center justify-center gap-5 pb-10 md:flex-row md:items-start">
-        <div className="flex w-full flex-2 flex-col items-start justify-center gap-2.5 md:items-start">
-          <EventCalendar />
-        </div>
+          i Revetalhagen?
+        </h1>
+        <p className="text-muted-foreground max-w-2xl text-base md:text-lg">
+          Her finner du en oversikt over kommende kurs, dugnader og sosiale
+          sammenkomster i hagen.
+        </p>
+      </div>
+      <div className="w-full pt-2">
+        <EventCalendar />
       </div>
     </div>
   );

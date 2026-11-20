@@ -31,7 +31,7 @@ async function Booking() {
         />
       </div>
       <BookingItemList />
-      {session?.user.role === "admin" && <CreateBookingItem />}
+      {session?.user.role?.includes("admin") && <CreateBookingItem />}
     </div>
   );
 }

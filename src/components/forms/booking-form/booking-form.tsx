@@ -27,13 +27,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import SubmitBookingDialog from "@/components/ui/submit-booking-dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { ItemType } from "@/lib/item-type";
 import { bookingFormSchema as formSchema } from "@/lib/schemas/booking-form-schema";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/server/auth/client";
 import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { addDays, differenceInCalendarDays, startOfDay } from "date-fns";
+import {
+  addDays,
+  differenceInCalendarDays,
+  startOfDay,
+  subDays,
+} from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Loader,
@@ -42,7 +48,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { parseAsIsoDateTime, useQueryStates } from "nuqs";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { type z } from "zod";
 
@@ -77,6 +83,22 @@ const BookingForm = React.memo<BookingFormProps>(
       resolver: zodResolver(formSchema),
       reValidateMode: "onBlur",
     });
+
+    useEffect(() => {
+      if (!session?.user) return;
+      const { dirtyFields } = form.formState;
+      if (session.user.name && !dirtyFields.name && !form.getValues("name")) {
+        form.setValue("name", session.user.name);
+      }
+      if (
+        session.user.email &&
+        !dirtyFields.email &&
+        !form.getValues("email")
+      ) {
+        form.setValue("email", session.user.email);
+      }
+    }, [session?.user, form]);
+
     const [people, from, to, email, phone, name, message] = form.watch([
       "personCount",
       "from",
@@ -104,17 +126,66 @@ const BookingForm = React.memo<BookingFormProps>(
 
     const bookingWindow = useMemo(() => {
       const start = startOfDay(new Date());
-      const end = startOfDay(addDays(start, 60));
+      const end = startOfDay(addDays(start, 365));
       return { start, end };
     }, []);
 
-    const { data: itemBookings, isLoading: itemBookingsLoading } =
-      api.booking.getItemBookings.useQuery({
-        itemId: item.id,
-        from: bookingWindow.start,
-        // 60 days in the future
-        to: bookingWindow.end,
-      });
+    const { data: itemBookings } = api.booking.getItemBookings.useQuery({
+      itemId: item.id,
+      from: bookingWindow.start,
+      // 365 days in the future
+      to: bookingWindow.end,
+    });
+
+    const fromCalendarDisable = useMemo(
+      () =>
+        itemBookings?.map((booking) => {
+          const bookingFrom = booking.booking.from;
+          const bookingTo = booking.booking.to;
+          if (
+            type === ItemType.OVERNATTING &&
+            differenceInCalendarDays(
+              startOfDay(bookingTo),
+              startOfDay(bookingFrom),
+            ) > 0
+          ) {
+            return {
+              from: bookingFrom,
+              to: subDays(bookingTo, 1),
+            };
+          }
+          return {
+            from: bookingFrom,
+            to: bookingTo,
+          };
+        }),
+      [itemBookings, type],
+    );
+
+    const toCalendarDisable = useMemo(
+      () =>
+        itemBookings?.map((booking) => {
+          const bookingFrom = booking.booking.from;
+          const bookingTo = booking.booking.to;
+          if (
+            type === ItemType.OVERNATTING &&
+            differenceInCalendarDays(
+              startOfDay(bookingTo),
+              startOfDay(bookingFrom),
+            ) > 0
+          ) {
+            return {
+              from: addDays(bookingFrom, 1),
+              to: bookingTo,
+            };
+          }
+          return {
+            from: bookingFrom,
+            to: bookingTo,
+          };
+        }),
+      [itemBookings, type],
+    );
 
     const rentalDays = useMemo(() => {
       if (!from || !to) {
@@ -142,12 +213,16 @@ const BookingForm = React.memo<BookingFormProps>(
         return ((people ?? 0) * personPrice + basePrice) * rentalDays;
       }
 
+      if (type === ItemType.HAGEUTSTYR) {
+        return basePrice;
+      }
+
       return basePrice * rentalDays;
     }, [basePrice, personPrice, people, rentalDays, type]);
 
     const memberPrice = useMemo(() => {
       if (typeof memberPriceDiscount === "number") {
-        return totalPrice * ((100 - memberPriceDiscount) / 100);
+        return Math.round(totalPrice * ((100 - memberPriceDiscount) / 100));
       }
       return totalPrice;
     }, [totalPrice, memberPriceDiscount]);
@@ -189,30 +264,32 @@ const BookingForm = React.memo<BookingFormProps>(
                     <FormItem className="flex-1">
                       <FormLabel>Fra</FormLabel>
                       <FormControl>
-                        {!itemBookingsLoading && (
-                          <DateTimePicker
-                            {...field}
-                            allowTime={
-                              type !== ItemType.OVERNATTING &&
-                              type !== ItemType.MØTEROM &&
-                              type !== ItemType.ARRANGEMENTSROM
-                            }
-                            calendarDisable={itemBookings?.map((booking) => {
-                              return {
-                                to: booking.booking.to,
-                                from: booking.booking.from,
-                              };
-                            })}
-                            onChange={(date) => {
-                              // Set the time to 17:00 if the type is OVERNATTING
-                              if (type === ItemType.OVERNATTING && date) {
-                                date.setHours(17, 0, 0, 0);
+                        <DateTimePicker
+                          {...field}
+                          allowTime={
+                            type !== ItemType.OVERNATTING &&
+                            type !== ItemType.MØTEROM &&
+                            type !== ItemType.ARRANGEMENTSROM
+                          }
+                          calendarDisable={fromCalendarDisable}
+                          onChange={(date) => {
+                            if (date) {
+                              const normalized = new Date(date.getTime());
+                              if (type === ItemType.OVERNATTING) {
+                                normalized.setHours(17, 0, 0, 0);
+                              } else if (
+                                type === ItemType.ARRANGEMENTSROM ||
+                                type === ItemType.MØTEROM
+                              ) {
+                                normalized.setHours(0, 0, 0, 0);
                               }
-                              field.onChange(date);
-                            }}
-                            value={field.value}
-                          />
-                        )}
+                              field.onChange(normalized);
+                              return;
+                            }
+                            field.onChange(date);
+                          }}
+                          value={field.value}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -232,16 +309,20 @@ const BookingForm = React.memo<BookingFormProps>(
                             type !== ItemType.MØTEROM &&
                             type !== ItemType.ARRANGEMENTSROM
                           }
-                          calendarDisable={itemBookings?.map((booking) => {
-                            return {
-                              to: booking.booking.to,
-                              from: booking.booking.from,
-                            };
-                          })}
+                          calendarDisable={toCalendarDisable}
                           onChange={(date) => {
-                            // Set the time to 12:00 if the type is OVERNATTING
-                            if (type === ItemType.OVERNATTING && date) {
-                              date.setHours(12, 0, 0, 0);
+                            if (date) {
+                              const normalized = new Date(date.getTime());
+                              if (type === ItemType.OVERNATTING) {
+                                normalized.setHours(12, 0, 0, 0);
+                              } else if (
+                                type === ItemType.ARRANGEMENTSROM ||
+                                type === ItemType.MØTEROM
+                              ) {
+                                normalized.setHours(23, 59, 59, 999);
+                              }
+                              field.onChange(normalized);
+                              return;
                             }
                             field.onChange(date);
                           }}
@@ -403,6 +484,19 @@ const BookingForm = React.memo<BookingFormProps>(
                   )}
                 />
               )}
+              <FormField
+                control={form.control}
+                name="message"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Melding (valgfritt)</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <Separator />
               <div className="flex flex-col">
                 <span>Totalpris</span>
@@ -428,7 +522,7 @@ const BookingForm = React.memo<BookingFormProps>(
                     )}
                   </AnimatePresence>
                 </div>
-                {session?.user?.role === "admin" && (
+                {session?.user?.role?.includes("admin") && (
                   <div className="mt-1">
                     <EditItemPriceDialog
                       id={item.id}
@@ -461,7 +555,17 @@ const BookingForm = React.memo<BookingFormProps>(
 
           <div className="mt-5 flex w-full flex-col items-center gap-2.5 md:flex-row md:gap-5">
             <div className="flex w-full flex-col gap-1 md:w-fit md:flex-row md:gap-2.5">
-              <Button size={"lg"} type="submit">
+              <Button
+                size={"lg"}
+                type="submit"
+                disabled={Boolean(
+                  from &&
+                    to &&
+                    (isCheckingAvailability ||
+                      isAvailabilityError ||
+                      bookingAvailability === false),
+                )}
+              >
                 <ShoppingCartIcon /> Book nå
               </Button>
               <SubmitBookingDialog
@@ -469,11 +573,12 @@ const BookingForm = React.memo<BookingFormProps>(
                   from: from,
                   to: to,
                   itemId: item.id,
-                  email: email ?? "",
-                  phone: phone ?? "",
+                  email: email?.trim() ? email : undefined,
+                  phone: phone?.trim() ? phone : undefined,
                   name: name ?? "",
-                  message: message ?? "",
-                  personCount: people,
+                  message: message?.trim() ? message : undefined,
+                  personCount:
+                    type === ItemType.OVERNATTING ? people : undefined,
                 }}
                 open={submitDialogOpen}
                 onOpenChange={setSubmitDialogOpen}

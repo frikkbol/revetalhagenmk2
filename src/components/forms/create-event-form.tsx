@@ -10,6 +10,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { DatetimePicker } from "../ui/datetime-picker";
+import { ImageUpload } from "../ui/image-upload";
 import { Label } from "../ui/label";
 import TextEditor from "../ui/portable-text/portable-text";
 import { Textarea } from "../ui/textarea";
@@ -68,6 +69,20 @@ function CreateEventForm({
               <div className="flex w-full flex-col gap-1">
                 <Label>Tittel</Label>
                 <Input {...field} placeholder="Fingerhekling med..." />
+              </div>
+            )}
+          />
+
+          <FormField
+            name="image"
+            control={form.control}
+            render={({ field }) => (
+              <div className="flex w-full flex-col gap-1">
+                <Label>Forsidebilde (valgfritt)</Label>
+                <ImageUpload
+                  value={field.value}
+                  onChange={field.onChange}
+                />
               </div>
             )}
           />

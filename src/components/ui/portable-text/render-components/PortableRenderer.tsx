@@ -1,15 +1,21 @@
+import { cn } from "@/lib/utils";
 import { PortableText } from "@portabletext/react";
 import React, { type ComponentProps } from "react";
+import { ImageZoom } from "../../shadcn-io/image-zoom";
 import PortableH1 from "./h1";
 import PortableH2 from "./h2";
 import PortableH3 from "./h3";
 import PortableQuote from "./quote";
-import { cn } from "@/lib/utils";
 
 type PortableBlockValue = {
   children?: Array<{
     text?: string;
   }>;
+};
+
+type PortableImageValue = {
+  url?: string;
+  alt?: string;
 };
 
 function PortableRenderer({
@@ -24,6 +30,24 @@ function PortableRenderer({
         <PortableText
           value={value ?? []}
           components={{
+            types: {
+              image: ({ value }: { value?: PortableImageValue }) => {
+                if (!value?.url) return null;
+                return (
+                  <figure className="my-6">
+                    <ImageZoom>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={value.url}
+                        alt={value.alt ?? "Bilde"}
+                        loading="lazy"
+                        className="max-h-[540px] w-full rounded-2xl object-contain"
+                      />
+                    </ImageZoom>
+                  </figure>
+                );
+              },
+            },
             block: {
               normal: ({ children, value }) => {
                 const text = (value as PortableBlockValue | undefined)?.children
@@ -34,7 +58,7 @@ function PortableRenderer({
                 return (
                   <p
                     className={cn(
-                      "whitespace-pre-wrap leading-relaxed",
+                      "leading-relaxed whitespace-pre-wrap",
                       isEmptyBlock && "min-h-[1.5em]",
                     )}
                   >

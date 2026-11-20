@@ -4,6 +4,7 @@ import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { InfoIcon, Loader, PlusIcon } from "lucide-react";
 import { type IconName } from "lucide-react/dynamic";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ const formSchema = z.object({
 function CreateItemMeta({ itemId }: { itemId: number }) {
   const { mutateAsync, isPending } = api.booking.addItemMeta.useMutation();
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -50,10 +52,9 @@ function CreateItemMeta({ itemId }: { itemId: number }) {
       itemId,
     })
       .then(() => {
-        toast(
-          "Informasjonsbrikken ble opprettet! Last inn siden på nytt for å se endringene",
-        );
+        toast("Informasjonsbrikken ble opprettet!");
         setOpen(false);
+        router.refresh();
       })
       .catch(() => {
         toast("Kunne ikke opprette informasjonsbrikke");

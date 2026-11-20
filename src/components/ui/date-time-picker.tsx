@@ -51,7 +51,7 @@ function DateTimePicker({
 
   return (
     <Popover>
-      <PopoverTrigger className="w-full">
+      <PopoverTrigger type="button" className="w-full">
         <Input
           type="text"
           value={
@@ -105,37 +105,28 @@ function DateTimePicker({
                           {timeSlots.map((timeSlot) => (
                             <Button
                               key={timeSlot}
+                              type="button"
                               variant={
                                 time === timeSlot ? "default" : "outline"
                               }
                               size="sm"
                               className="w-full"
-                              onClick={() =>
-                                onChange?.(
-                                  new Date(
-                                    value
-                                      ? value.setHours(
-                                          parseInt(
-                                            timeSlot?.split(":")[0] ?? "0",
-                                          ),
-                                          parseInt(
-                                            timeSlot?.split(":")[1] ?? "0",
-                                          ),
-                                        )
-                                      : new Date(
-                                          today.getFullYear(),
-                                          today.getMonth(),
-                                          today.getDate(),
-                                          parseInt(
-                                            timeSlot?.split(":")[0] ?? "0",
-                                          ),
-                                          parseInt(
-                                            timeSlot?.split(":")[1] ?? "0",
-                                          ),
-                                        ),
-                                  ),
-                                )
-                              }
+                              onClick={() => {
+                                const [hoursStr, minutesStr] =
+                                  timeSlot.split(":");
+                                const hours = parseInt(hoursStr ?? "0", 10);
+                                const minutes = parseInt(minutesStr ?? "0", 10);
+                                const nextDate = value
+                                  ? new Date(value.getTime())
+                                  : new Date(
+                                      today.getFullYear(),
+                                      today.getMonth(),
+                                      today.getDate(),
+                                    );
+                                nextDate.setHours(hours, minutes, 0, 0);
+                                setTime(timeSlot);
+                                onChange?.(nextDate);
+                              }}
                             >
                               {timeSlot}
                             </Button>

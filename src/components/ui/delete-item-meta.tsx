@@ -1,6 +1,7 @@
 "use client";
 import { api } from "@/trpc/react";
 import { Loader, XIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "./button";
@@ -9,15 +10,14 @@ function DeleteItemMeta({ id }: { id: number }) {
   const { mutateAsync } = api.booking.deleteItemMeta.useMutation();
   const [loading, setLoading] = useState(false);
   const utils = api.useUtils();
+  const router = useRouter();
   const handleDelete = () => {
     setLoading(true);
     void mutateAsync({ id })
-      .then((res) => {
-        console.log("Deleted ", res);
-        toast(
-          "Informasjonsbrikken er slettet. Last inn siden på nytt for å se endringene.",
-        );
+      .then(() => {
+        toast("Informasjonsbrikken er slettet.");
         void utils.booking.getItemById.invalidate();
+        router.refresh();
       })
       .catch(() => {
         toast("Kunne ikke slette informasjonsbrikken");

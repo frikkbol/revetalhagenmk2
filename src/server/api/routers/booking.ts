@@ -8,9 +8,46 @@ import sendBookingConfirmations, {
   sendBookingConfirmationsToAdmin,
   sendBookingStatusUpdate,
 } from "@/server/email/booking";
-import { eq } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { adminProcedure, createTRPCRouter, publicProcedure } from "../trpc";
+
+const hasNonEmptyReason = (reason?: string): boolean => {
+  if (!reason) return false;
+  const trimmed = reason.trim();
+  if (!trimmed) return false;
+
+  if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.some((block) => {
+          if (
+            typeof block === "object" &&
+            block !== null &&
+            "children" in block &&
+            Array.isArray((block as { children: unknown }).children)
+          ) {
+            return (block as { children: unknown[] }).children.some(
+              (child) =>
+                typeof child === "object" &&
+                child !== null &&
+                "text" in child &&
+                typeof (child as { text: unknown }).text === "string" &&
+                (child as { text: string }).text.trim().length > 0,
+            );
+          }
+          return false;
+        });
+      }
+    } catch {
+      // Not valid JSON, treat as plain text
+    }
+  }
+
+  return true;
+};
 
 export const bookingRouter = createTRPCRouter({
   getItemTypes: publicProcedure.query(async ({ ctx }) => {
@@ -41,7 +78,7 @@ export const bookingRouter = createTRPCRouter({
             conditions.push(eq(item.type, type));
           }
           if (from && to) {
-            // exclude any item that has *any* booking overlapping [from, to)
+            // exclude any item that has *any* active booking overlapping [from, to)
             conditions.push(
               notExists(
                 ctx.db
@@ -52,6 +89,7 @@ export const bookingRouter = createTRPCRouter({
                   .where(
                     and(
                       eq(booking.item, item.id),
+                      notInArray(booking.status, ["rejected", "cancelled"]),
                       lt(booking.from, to), // booking.from < requestedTo
                       gt(booking.to, from), // booking.to   > requestedFrom
                     ),
@@ -143,92 +181,124 @@ export const bookingRouter = createTRPCRouter({
 
   createBooking: publicProcedure
     .input(
-      z.object({
-        itemId: z.number(),
-        from: z.date(),
-        to: z.date(),
-        userId: z.number().optional(),
-        email: z.string().email().optional(),
-        phone: z.string().optional(),
-        name: z.string().optional(),
-        message: z.string().optional(),
-        personCount: z.number().min(1).max(100).optional(),
-      }),
+      z
+        .object({
+          itemId: z.number(),
+          from: z.date(),
+          to: z.date(),
+          userId: z.number().optional(),
+          email: z.string().email().optional().or(z.literal("")),
+          phone: z.string().optional(),
+          name: z.string().trim().min(2),
+          message: z.string().optional(),
+          personCount: z.number().min(1).max(100).optional(),
+        })
+        .refine((data) => data.from <= data.to, {
+          message: "Fra-dato må være før eller lik til-dato",
+          path: ["from"],
+        })
+        .refine((data) => !!data.email || !!data.phone, {
+          message: "Du må fylle ut enten epost eller telefonnummer",
+          path: ["email"],
+        }),
     )
     .mutation(async ({ ctx, input }) => {
       const { itemId, from, to, email, phone, name, message, personCount } =
         input;
 
-      // Check booking validity
-      const isValid = await CheckBookingValidity({
-        db: ctx.db,
-        itemId,
-        from,
-        to,
-      });
+      const { createdBooking, bookedItem, price } = await ctx.db.transaction(
+        async (tx) => {
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(987654321)`);
 
-      if (!isValid) {
-        throw new Error("Invalid booking");
-      }
+          // Check booking validity inside transaction
+          const isValid = await CheckBookingValidity({
+            db: tx,
+            itemId,
+            from,
+            to,
+          });
 
-      const price = await CalculatePrice({
-        db: ctx.db,
-        itemId,
-        from,
-        to,
-        people: personCount,
-      });
+          if (!isValid) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "Gjenstanden er ikke tilgjengelig i det valgte tidsrommet.",
+            });
+          }
 
-      console.log("Calculated price: (return) ", price);
+          const bookedItem = await tx.query.item.findFirst({
+            where: eq(item.id, itemId),
+          });
 
-      const created = await ctx.db
-        .insert(booking)
-        .values({
-          item: itemId,
-          from,
-          to,
-          name: name ?? "Unknown user",
-          email: email ?? "",
-          personCount: personCount,
-          phone: phone,
-          message,
-          price: price.nonMemberPrice,
-        })
-        .returning();
+          const price = await CalculatePrice({
+            db: tx,
+            itemId,
+            from,
+            to,
+            people: personCount,
+          });
 
-      const bookedItem = await ctx.db.query.item.findFirst({
-        where: eq(item?.id, itemId),
-      });
+          const created = await tx
+            .insert(booking)
+            .values({
+              item: itemId,
+              from,
+              to,
+              name,
+              email: email?.trim() ? email.trim() : null,
+              personCount: bookedItem?.type === 1 ? personCount : null,
+              phone: phone?.trim() ? phone.trim() : null,
+              message,
+              price: price.nonMemberPrice,
+            })
+            .returning();
 
-      // Send the booking confirmation email to post@revetalhagen.no aswell
-      await sendBookingConfirmationsToAdmin({
-        from,
-        to,
-        bookingReference: created[0]?.reference,
-        item: {
-          name: bookedItem?.name ?? "Ukjent gjenstand",
+          return {
+            createdBooking: created[0],
+            bookedItem,
+            price,
+          };
         },
-        name: name ?? "Ukjent bruker",
-        totalPrice: price.nonMemberPrice,
-      });
+      );
 
-      if (email) {
-        // Send booking confirmation email
-        await sendBookingConfirmations({
-          email,
+      // Send the booking confirmation email to admin
+      try {
+        await sendBookingConfirmationsToAdmin({
           from,
           to,
-          bookingReference: created[0]?.reference,
+          bookingReference: createdBooking?.reference,
           item: {
             name: bookedItem?.name ?? "Ukjent gjenstand",
           },
           name,
           totalPrice: price.nonMemberPrice,
         });
+      } catch (error) {
+        console.error(
+          "Failed to send admin booking confirmation email:",
+          error,
+        );
       }
 
-      // Create booking
-      return created[0];
+      if (email) {
+        // Send booking confirmation email
+        try {
+          await sendBookingConfirmations({
+            email,
+            from,
+            to,
+            bookingReference: createdBooking?.reference,
+            item: {
+              name: bookedItem?.name ?? "Ukjent gjenstand",
+            },
+            name,
+            totalPrice: price.nonMemberPrice,
+          });
+        } catch (error) {
+          console.error("Failed to send booking confirmation email:", error);
+        }
+      }
+
+      return createdBooking;
     }),
   checkAvailability: publicProcedure
     .input(
@@ -246,7 +316,7 @@ export const bookingRouter = createTRPCRouter({
 
       return validity;
     }),
-  getBookings: publicProcedure
+  getBookings: adminProcedure
     .input(
       z.object({
         itemId: z.number().optional(),
@@ -270,8 +340,6 @@ export const bookingRouter = createTRPCRouter({
           }
           if (from) {
             conditions.push(gte(booking.from, from));
-          } else {
-            conditions.push(gte(booking.from, new Date()));
           }
           if (to) {
             conditions.push(lte(booking.to, to));
@@ -281,6 +349,7 @@ export const bookingRouter = createTRPCRouter({
           }
           return and(...conditions);
         },
+        orderBy: (booking, { desc }) => [desc(booking.createdAt)],
         with: {
           item: true,
         },
@@ -298,15 +367,13 @@ export const bookingRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { itemId, from, to } = input;
-      if (!from || !to) {
-        throw new Error("Both 'from' and 'to' dates are required");
-      }
+      const now = new Date();
 
       const bookings = await GetItemBookings({
         db: ctx.db,
         itemId,
-        from: from ?? new Date(),
-        to: to ?? new Date(new Date().getTime() + 24 * 60 * 60 * 1000 * 60), // Default to 60 day later
+        from: from ?? now,
+        to: to ?? new Date(now.getTime() + 24 * 60 * 60 * 1000 * 60), // Default to 60 days later
       });
 
       return bookings;
@@ -314,7 +381,7 @@ export const bookingRouter = createTRPCRouter({
   getBookingByReference: publicProcedure
     .input(
       z.object({
-        reference: z.string().min(1),
+        reference: z.string().uuid(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -332,7 +399,7 @@ export const bookingRouter = createTRPCRouter({
 
       return response;
     }),
-  getOverlappingBookings: publicProcedure
+  getOverlappingBookings: adminProcedure
     .input(
       z.object({
         itemId: z.number(),
@@ -343,7 +410,7 @@ export const bookingRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const { itemId, from, to } = input;
 
-      const bookings = GetItemBookings({
+      const bookings = await GetItemBookings({
         db: ctx.db,
         itemId,
         from,
@@ -363,7 +430,7 @@ export const bookingRouter = createTRPCRouter({
         .refine(
           (data) => {
             if (data.status === "rejected") {
-              return !!data.reason;
+              return hasNonEmptyReason(data.reason);
             }
             return true;
           },
@@ -388,13 +455,16 @@ export const bookingRouter = createTRPCRouter({
       const updatedBooking = updated[0];
       if (!updatedBooking) return undefined;
 
-      console.log("Sending booking status update email");
       if (updatedBooking.email) {
-        void sendBookingStatusUpdate({
-          name: updatedBooking.name ?? "",
-          to: updatedBooking.email,
-          bookingReference: updatedBooking.reference,
-        });
+        try {
+          await sendBookingStatusUpdate({
+            name: updatedBooking.name ?? "",
+            to: updatedBooking.email,
+            bookingReference: updatedBooking.reference,
+          });
+        } catch (error) {
+          console.error("Failed to send booking status update email:", error);
+        }
       }
 
       return updatedBooking;

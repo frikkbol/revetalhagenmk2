@@ -1,4 +1,5 @@
 import { event, eventMessage, user } from "@/server/db/schema";
+import { deleteRemovedImages } from "@/server/uploadthing";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -55,7 +56,7 @@ export const eventsRouter = createTRPCRouter({
         author: ctx.session.user.id,
         updatedAt: new Date(),
         location: input.location,
-        image: input.image,
+        image: input.image && input.image.length > 0 ? input.image : null,
         description: input.content,
         preview: input.preview,
       });
@@ -90,6 +91,13 @@ export const eventsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.event.findFirst({
+        where: eq(event.id, input.id),
+      });
+
+      const nextImage =
+        input.image && input.image.length > 0 ? input.image : null;
+
       const updated = await ctx.db
         .update(event)
         .set({
@@ -98,11 +106,20 @@ export const eventsRouter = createTRPCRouter({
           start: input.start,
           updatedAt: new Date(),
           location: input.location,
-          image: input.image,
+          image: nextImage,
           description: input.content,
           preview: input.preview,
         })
         .where(eq(event.id, input.id));
+
+      if (existing) {
+        await deleteRemovedImages({
+          previousImage: existing.image,
+          nextImage,
+          previousContent: existing.description,
+          nextContent: input.content,
+        });
+      }
 
       return updated;
     }),
@@ -113,7 +130,18 @@ export const eventsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.delete(event).where(eq(event.id, input.id));
+      const deleted = await ctx.db
+        .delete(event)
+        .where(eq(event.id, input.id))
+        .returning();
+
+      if (deleted[0]) {
+        await deleteRemovedImages({
+          previousImage: deleted[0].image,
+          previousContent: deleted[0].description,
+        });
+      }
+
       return { success: true };
     }),
   getComments: memberProcedure

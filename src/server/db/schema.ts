@@ -87,6 +87,7 @@ export const news = createTable("news", (d) => ({
   author: d.text().references(() => user.id, { onDelete: "set null" }),
   views: d.integer().default(0),
   preview: d.text(),
+  image: d.text(),
 }));
 
 export const newsRelations = relations(news, ({ one }) => ({
@@ -206,11 +207,9 @@ export const membershipApplication = createTable(
   }),
 );
 
-export const itemRelations = relations(item, ({ one, many }) => ({
-  bookings: one(booking, {
-    fields: [item.id],
-    references: [booking.item],
-    relationName: "itemBookings",
+export const itemRelations = relations(item, ({ many }) => ({
+  bookings: many(booking, {
+    relationName: "bookingItem",
   }),
   itemMeta: many(itemMeta),
   itemImage: many(itemImage),

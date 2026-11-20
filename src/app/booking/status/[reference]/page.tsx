@@ -1,4 +1,3 @@
-"use server";
 import BookingContact from "@/components/ui/booking-contact";
 import BookingResultCard from "@/components/ui/booking-result-card";
 import BookingReviewMeta from "@/components/ui/booking-review-meta";
@@ -9,7 +8,22 @@ import { auth } from "@/server/auth";
 import { api } from "@/trpc/server";
 import type { PortableTextBlock } from "@portabletext/editor";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseRejectionReason(
+  raw: string | null | undefined,
+): PortableTextBlock[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as PortableTextBlock[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 async function BookingStatus({
   params,
@@ -17,13 +31,22 @@ async function BookingStatus({
   params: Promise<{ reference: string }>;
 }) {
   const { reference } = await params;
-  if (!reference) redirect("/404");
+  if (!reference || !UUID_REGEX.test(reference)) {
+    notFound();
+  }
 
-  const bookingData = await api.booking.getBookingByReference({
-    reference,
-  });
+  let bookingData;
+  try {
+    bookingData = await api.booking.getBookingByReference({
+      reference,
+    });
+  } catch {
+    notFound();
+  }
 
-  if (!bookingData?.item) return redirect("/404");
+  if (!bookingData?.item) {
+    notFound();
+  }
 
   // const otherBookings = await api.booking.getOverlappingBookings({
   //   from: startOfWeek(bookingData?.from),
@@ -34,20 +57,21 @@ async function BookingStatus({
   const session = await auth.api.getSession({
     headers: await headers(),
   });
+  const isAdmin = Boolean(session?.user.role?.includes("admin"));
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-5 px-5 pt-40 pb-10 md:px-10">
       <BookingStatusHero
-        item={bookingData?.item}
-        from={bookingData?.from}
-        to={bookingData?.to}
+        item={bookingData.item}
+        from={bookingData.from}
+        to={bookingData.to}
       />
-      {session?.user.role !== "admin" && (
+      {!isAdmin && (
         <>
           {(bookingData.status === "rejected" ||
             bookingData.status === "confirmed") && (
             <BookingResultCard
-              rejectionReason={bookingData?.rejectionReason ?? "[]"}
+              rejectionReason={bookingData.rejectionReason ?? "[]"}
               variant={bookingData.status}
             />
           )}
@@ -55,14 +79,14 @@ async function BookingStatus({
           {bookingData.status !== "rejected" &&
             bookingData.status !== "cancelled" && (
               <>
-                <BookingStatusProgress status={bookingData?.status} />
+                <BookingStatusProgress status={bookingData.status} />
                 <BookingContact className="mt-5" />
               </>
             )}
         </>
       )}
 
-      {session?.user.role === "admin" && (
+      {isAdmin && (
         <>
           <BookingReviewMeta
             booking={{
@@ -88,19 +112,14 @@ async function BookingStatus({
               </Button>
             }
           /> */}
+          <BookingStatusToggle
+            bookingId={bookingData.id}
+            initialValue={{
+              status: bookingData.status,
+              reason: parseRejectionReason(bookingData.rejectionReason),
+            }}
+          />
         </>
-      )}
-
-      {session?.user?.role === "admin" && (
-        <BookingStatusToggle
-          bookingId={bookingData?.id}
-          initialValue={{
-            status: bookingData?.status,
-            reason: JSON.parse(
-              bookingData?.rejectionReason ?? "[]",
-            ) as PortableTextBlock[],
-          }}
-        />
       )}
     </div>
   );

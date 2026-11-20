@@ -2,7 +2,15 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import type { booking } from "@/server/db/schema";
 import { format } from "date-fns";
-import { BanknoteIcon, ClockIcon, Mail, Phone, UserIcon } from "lucide-react";
+import {
+  BanknoteIcon,
+  ClockIcon,
+  Mail,
+  MessageSquareIcon,
+  Phone,
+  UserIcon,
+  UsersIcon,
+} from "lucide-react";
 import { nb } from "date-fns/locale";
 
 type BookingReviewMetaProps = {
@@ -29,6 +37,15 @@ function BookingReviewMeta({ booking }: BookingReviewMetaProps) {
             <strong>{booking.price} kr</strong>
           </span>
         </span>
+        {booking.personCount != null && (
+          <span className="flex items-center gap-2.5">
+            <UsersIcon />
+            <span>
+              {booking.personCount}{" "}
+              {booking.personCount === 1 ? "person" : "personer"}
+            </span>
+          </span>
+        )}
         <span className="flex items-center gap-2.5">
           <UserIcon />
           {booking.name}
@@ -41,6 +58,12 @@ function BookingReviewMeta({ booking }: BookingReviewMetaProps) {
           <span className="flex items-center gap-2.5">
             <Phone />
             {booking.phone}
+          </span>
+        )}
+        {booking.message && booking.message.trim().length > 0 && (
+          <span className="flex items-start gap-2.5">
+            <MessageSquareIcon className="mt-0.5 shrink-0" />
+            <span className="whitespace-pre-wrap">{booking.message}</span>
           </span>
         )}
       </CardContent>

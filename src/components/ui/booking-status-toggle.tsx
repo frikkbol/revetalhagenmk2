@@ -28,6 +28,39 @@ import PortableRenderer from "./portable-text/render-components/PortableRenderer
 
 type StatusValue = keyof typeof BookingStatusMap;
 
+function parsePortableText(
+  raw: string | null | undefined,
+): PortableTextBlock[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as PortableTextBlock[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function hasPortableTextContent(raw: string): boolean {
+  const blocks = parsePortableText(raw);
+  return blocks.some((block) => {
+    if (
+      block &&
+      typeof block === "object" &&
+      "children" in block &&
+      Array.isArray(block.children)
+    ) {
+      return block.children.some((child: unknown) => {
+        if (child && typeof child === "object" && "text" in child) {
+          const text = (child as { text?: unknown }).text;
+          return typeof text === "string" && text.trim().length > 0;
+        }
+        return false;
+      });
+    }
+    return false;
+  });
+}
+
 const formSchema = z
   .object({
     status: z.enum(BookingStates),
@@ -35,9 +68,9 @@ const formSchema = z
   })
   .refine(
     (data) => {
-      // Require rejection reason if status is rejected
-      if (data.status === BookingStatusMap.rejected) {
-        return !!data.reason;
+      // Require rejection reason with non-whitespace text if status is rejected
+      if (data.status === "rejected") {
+        return hasPortableTextContent(data.reason);
       }
       return true;
     },
@@ -68,18 +101,21 @@ function BookingStatusToggle({
     api.booking.updateBookingStatus.useMutation();
 
   const handleSubmit = (data: z.infer<typeof formSchema>) => {
-    // console.log(data.reason);
     void mutateAsync({
       bookingId,
       status: data.status,
       reason: data.status === "rejected" ? data.reason : undefined,
-    }).then(() => {
-      toast.success("Bookingen ble oppdatert");
-      router.refresh();
-    });
+    })
+      .then(() => {
+        toast.success("Bookingen ble oppdatert");
+        router.refresh();
+      })
+      .catch(() => {
+        toast.error("Kunne ikke oppdatere bookingstatus");
+      });
   };
 
-  const [status, reason] = form.watch(["status", "reason"]);
+  const status = form.watch("status");
 
   return (
     <Card>
@@ -107,6 +143,10 @@ function BookingStatusToggle({
                       {
                         label: BookingStatusMap.confirmed,
                         value: "confirmed",
+                      },
+                      {
+                        label: BookingStatusMap.completed,
+                        value: "completed",
                       },
                       {
                         label: BookingStatusMap.rejected,
@@ -159,11 +199,7 @@ function BookingStatusToggle({
                                 {field.value && (
                                   <PortableRenderer
                                     className="border-border w-full rounded-3xl border p-5 shadow-xs md:px-10"
-                                    value={
-                                      JSON.parse(
-                                        field.value ?? "[]",
-                                      ) as PortableTextBlock[]
-                                    }
+                                    value={parsePortableText(field.value)}
                                   />
                                 )}
                               </div>
@@ -172,11 +208,7 @@ function BookingStatusToggle({
                                 onChange={(value) => {
                                   field.onChange(JSON.stringify(value ?? []));
                                 }}
-                                value={
-                                  JSON.parse(
-                                    field.value ?? "[]",
-                                  ) as PortableTextBlock[]
-                                }
+                                value={parsePortableText(field.value)}
                               />
                             )}
                           </FormControl>

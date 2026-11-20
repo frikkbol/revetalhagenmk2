@@ -50,14 +50,24 @@ const LandingEventList = ({
             key={event.id}
             className="h-auto"
           >
-            <Card className="h-full w-full">
+            <Card className="h-full w-full overflow-hidden">
+              {event.image && (
+                <div className="-mt-6 h-48 w-full overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={event.image}
+                    alt={event.title ?? "Arrangement"}
+                    className="bg-secondary h-full w-full object-cover object-center"
+                  />
+                </div>
+              )}
               <CardHeader>
                 <CardTitle>{event.title}</CardTitle>
                 <CardDescription className="line-clamp-2">
                   {event.preview}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex h-full flex-col gap-2.5">
+              <CardContent className="flex flex-1 flex-col gap-2.5">
                 <p className="flex items-center gap-1">
                   <ClockIcon />
                   {formatEventDateRange(event.start, event.end)}
@@ -67,7 +77,7 @@ const LandingEventList = ({
                     <MapPinIcon /> {event.location}
                   </p>
                 )}
-                <CardAction className="mt-2.5 flex h-full items-end justify-self-start">
+                <CardAction className="mt-auto pt-2.5 justify-self-start">
                   <Button variant="secondary">
                     Se mer <ArrowRightIcon />
                   </Button>

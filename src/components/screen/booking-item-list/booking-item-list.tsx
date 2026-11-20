@@ -23,6 +23,15 @@ function BookingItemList() {
     from: filterQueries.from ?? undefined,
     to: filterQueries.to ?? undefined,
   });
+  const itemQuery = new URLSearchParams();
+  if (filterQueries.from) {
+    itemQuery.set("from", filterQueries.from.toISOString());
+  }
+  if (filterQueries.to) {
+    itemQuery.set("to", filterQueries.to.toISOString());
+  }
+  const itemQueryString = itemQuery.toString();
+
   return (
     <div
       className="flex min-h-[80vh] w-full flex-col items-center gap-2.5"
@@ -82,7 +91,11 @@ function BookingItemList() {
               <BookingItemCard
                 item={item}
                 withPrice
-                href={`/booking/${item.id}?from=${filterQueries.from?.toISOString() ?? ""}&to=${filterQueries.to?.toISOString() ?? ""}`}
+                href={
+                  itemQueryString
+                    ? `/booking/${item.id}?${itemQueryString}`
+                    : `/booking/${item.id}`
+                }
               />
             </motion.div>
           ))}

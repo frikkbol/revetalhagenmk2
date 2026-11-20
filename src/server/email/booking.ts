@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 import BookingConfirmationAdminTemplate from "emails/booking-confirmation-admin-template";
 import BookingConfirmationTemplate from "emails/booking-confirmation-template";
 import BookingStatusTemplate from "emails/booking-status-template";
@@ -42,6 +42,7 @@ const sendBookingConfirmations = async ({
   });
 
   if (error) {
+    console.error("Failed to send booking confirmation email:", error);
     return error;
   }
 
@@ -76,6 +77,7 @@ export const sendBookingConfirmationsToAdmin = async ({
   });
 
   if (error) {
+    console.error("Failed to send admin booking confirmation email:", error);
     return error;
   }
 
@@ -94,7 +96,7 @@ export const sendBookingStatusUpdate = async ({
   const { data, error } = await resend.emails.send({
     from: "Revetalhagen (booking) <booking@revetalhagen.no>",
     to: [to],
-    subject: "Ny bookingforespørsel",
+    subject: "Oppdatering på din bookingforespørsel",
     react: BookingStatusTemplate({
       name,
       bookingReference,
@@ -102,6 +104,7 @@ export const sendBookingStatusUpdate = async ({
   });
 
   if (error) {
+    console.error("Failed to send booking status update email:", error);
     return error;
   }
 

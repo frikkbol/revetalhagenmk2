@@ -12,8 +12,13 @@ import {
   Tailwind,
   Text,
 } from "@react-email/components";
-import { BedIcon, ClockIcon } from "lucide-react";
-import { format } from "date-fns";
+
+const osloDateFormatter = new Intl.DateTimeFormat("nb-NO", {
+  timeZone: "Europe/Oslo",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
 
 type BookingConfirmationTemplateProps = {
   totalPrice: number;
@@ -44,7 +49,7 @@ function BookingConfirmationTemplate({
             alt="Låhnehuset"
             className="w-full rounded-[12px] object-cover"
             height="320"
-            src={`https://www.revetalhagen.no/_next/image?url=%2Fimages%2Flaahnehuset.jpg&w=3840&q=75`}
+            src="https://www.revetalhagen.no/images/laahnehuset.jpg"
           />
           <Section className="mt-[32px] text-center">
             <Text className="my-[16px] text-[18px] leading-[28px] font-semibold text-indigo-600">
@@ -70,15 +75,14 @@ function BookingConfirmationTemplate({
             <Section className="w-fit">
               <Row className="w-fit" cellSpacing={10}>
                 <Column>
-                  <Text className="flex items-center gap-2.5 rounded-md border border-solid border-gray-300 bg-gray-100 px-2">
-                    <BedIcon size={16} />
-                    {item.name}
+                  <Text className="rounded-md border border-solid border-gray-300 bg-gray-100 px-3 py-1">
+                    <strong>Objekt:</strong> {item.name}
                   </Text>
                 </Column>
                 <Column>
-                  <Text className="flex items-center gap-2.5 rounded-md border border-solid border-gray-300 bg-gray-100 px-2">
-                    <ClockIcon size={16} />
-                    {format(from, "dd.MM.yyyy")} - {format(to, "dd.MM.yyyy")}
+                  <Text className="rounded-md border border-solid border-gray-300 bg-gray-100 px-3 py-1">
+                    <strong>Dato:</strong> {osloDateFormatter.format(from)} -{" "}
+                    {osloDateFormatter.format(to)}
                   </Text>
                 </Column>
               </Row>

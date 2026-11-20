@@ -36,9 +36,9 @@ function NewsDialog({
         onOpenChange(false);
         void utils.news.getAllInfinite.invalidate();
         onEditSuccess?.();
-        if (defaultValues?.id) return;
+        if (!defaultValues?.id) return;
         void utils.news.getById.invalidate({
-          id: defaultValues?.id,
+          id: defaultValues.id,
         });
       },
     });
@@ -61,6 +61,7 @@ function NewsDialog({
                 content: data.content,
                 title: data.title,
                 preview: data.preview,
+                image: data.image,
                 id: defaultValues.id,
               });
             }
@@ -69,11 +70,16 @@ function NewsDialog({
             content: defaultValues?.content ?? "[]",
             preview: defaultValues?.preview ?? "",
             title: defaultValues?.name ?? "",
+            image: defaultValues?.image ?? "",
           }}
         >
           {({ canSubmit }) => (
             <CardAction className="flex w-full justify-end gap-2.5">
-              <Button variant="ghost">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onOpenChange(false)}
+              >
                 <XIcon />
                 Avbryt
               </Button>

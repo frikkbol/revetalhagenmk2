@@ -8,7 +8,13 @@ import {
   Tailwind,
   Text,
 } from "@react-email/components";
-import { format } from "date-fns";
+
+const osloDateFormatter = new Intl.DateTimeFormat("nb-NO", {
+  timeZone: "Europe/Oslo",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
 
 type BookingConfirmationTemplateProps = {
   totalPrice: number;
@@ -48,8 +54,8 @@ function BookingConfirmationAdminTemplate({
             <Text className="text-[16px] leading-[24px] text-gray-500">
               <strong>{name}</strong> har sendt inn en bookingforespørsel for{" "}
               <strong>{item.name}</strong> mellom{" "}
-              <strong>{format(from, "dd.MM.yyyy")}</strong> og{" "}
-              <strong>{format(to, "dd.MM.yyyy")}</strong> for{" "}
+              <strong>{osloDateFormatter.format(from)}</strong> og{" "}
+              <strong>{osloDateFormatter.format(to)}</strong> for{" "}
               <strong>{totalPrice} kr</strong>.
             </Text>
             <Text className="text-[16px] leading-[24px] text-gray-500">

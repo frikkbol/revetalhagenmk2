@@ -29,7 +29,7 @@ function BookingStatusTemplate({
             alt="Låhnehuset"
             className="w-full rounded-[12px] object-cover"
             height="320"
-            src={`https://www.revetalhagen.no/_next/image?url=%2Fimages%2Flaahnehuset.jpg&w=3840&q=75`}
+            src="https://www.revetalhagen.no/images/laahnehuset.jpg"
           />
           <Section className="mt-[32px] text-center">
             <Text className="my-[16px] text-[18px] leading-[28px] font-semibold text-indigo-600">

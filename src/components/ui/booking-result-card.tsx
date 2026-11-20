@@ -19,10 +19,28 @@ type BookingResultCardProps = {
   variant?: "confirmed" | "rejected";
 };
 
+function parseRejectionReason(
+  reason?: string,
+): PortableTextBlock[] | string | null {
+  if (!reason?.trim()) return null;
+  try {
+    const parsed: unknown = JSON.parse(reason);
+    if (Array.isArray(parsed)) {
+      return parsed as PortableTextBlock[];
+    }
+    return reason;
+  } catch {
+    return reason;
+  }
+}
+
 function BookingResultCard({
   rejectionReason,
   variant = "confirmed",
 }: BookingResultCardProps) {
+  const parsedRejectionReason =
+    variant === "rejected" ? parseRejectionReason(rejectionReason) : null;
+
   return (
     <Card className="my-10">
       <CardHeader>
@@ -51,11 +69,12 @@ function BookingResultCard({
       </CardHeader>
       <Separator />
       <CardContent className="mt-0 flex flex-col gap-5">
-        {rejectionReason && variant === "rejected" && (
-          <PortableRenderer
-            value={JSON.parse(rejectionReason) as PortableTextBlock[]}
-          />
-        )}
+        {parsedRejectionReason &&
+          (Array.isArray(parsedRejectionReason) ? (
+            <PortableRenderer value={parsedRejectionReason} />
+          ) : (
+            <p className="whitespace-pre-wrap">{parsedRejectionReason}</p>
+          ))}
         <div className="flex flex-col gap-2.5">
           {variant === "confirmed" && (
             <>

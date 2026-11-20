@@ -23,7 +23,7 @@ import { ArrowRight, CheckIcon, TriangleAlertIcon } from "lucide-react";
 import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 import { headers } from "next/headers";
 import Image from "next/image";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 async function Item({
   params,
@@ -33,20 +33,31 @@ async function Item({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { item } = await params;
+  const itemId = Number(item);
+  if (!Number.isInteger(itemId) || itemId <= 0) {
+    notFound();
+  }
+
   const { from, to } = await searchParams;
+  const parsedFrom = from ? new Date(from) : undefined;
+  const parsedTo = to ? new Date(to) : undefined;
+  const hasValidDateRange = Boolean(
+    parsedFrom &&
+      parsedTo &&
+      !Number.isNaN(parsedFrom.getTime()) &&
+      !Number.isNaN(parsedTo.getTime()),
+  );
+
   const availability =
-    from && to
+    hasValidDateRange && parsedFrom && parsedTo
       ? await api.booking.checkAvailability({
-          itemId: Number(item),
-          from: new Date(from),
-          to: new Date(to),
+          itemId,
+          from: parsedFrom,
+          to: parsedTo,
         })
       : undefined;
-  if (!item) {
-    // Redirect to not found
-    redirect("/404");
-  }
-  const itemData = await api.booking.getItemById({ id: Number(item) });
+
+  const itemData = await api.booking.getItemById({ id: itemId });
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -107,32 +118,35 @@ async function Item({
         <h1 className="w-fit text-3xl font-black md:text-5xl">
           {itemData.name}
         </h1>
-        {availability === true && from && to && (
+        {availability === true && hasValidDateRange && parsedFrom && parsedTo && (
           <Badge>
             <CheckIcon />
             Ledig fra{" "}
-            {format(from, "do LLL yyy", {
+            {format(parsedFrom, "do LLL yyy", {
               locale: nb,
             })}{" "}
             til{" "}
-            {format(to, "do LLL yyy", {
+            {format(parsedTo, "do LLL yyy", {
               locale: nb,
             })}
           </Badge>
         )}
-        {availability === false && from && to && (
-          <Badge variant="destructive">
-            <TriangleAlertIcon />
-            Ikke ledig fra{" "}
-            {format(from, "do LLL yyy", {
-              locale: nb,
-            })}{" "}
-            til{" "}
-            {format(to, "do LLL yyy", {
-              locale: nb,
-            })}
-          </Badge>
-        )}
+        {availability === false &&
+          hasValidDateRange &&
+          parsedFrom &&
+          parsedTo && (
+            <Badge variant="destructive">
+              <TriangleAlertIcon />
+              Ikke ledig fra{" "}
+              {format(parsedFrom, "do LLL yyy", {
+                locale: nb,
+              })}{" "}
+              til{" "}
+              {format(parsedTo, "do LLL yyy", {
+                locale: nb,
+              })}
+            </Badge>
+          )}
         <Card className="mt-5 gap-2.5">
           <CardContent className="flex flex-col gap-5">
             <Badge variant="secondary">
@@ -152,19 +166,19 @@ async function Item({
                 >
                   {meta.icon && <DynamicIcon name={meta.icon as IconName} />}
                   {meta.label}
-                  {session?.user.role === "admin" && (
+                  {session?.user.role?.includes("admin") && (
                     <DeleteItemMeta id={Number(meta.id)} />
                   )}
                 </span>
               ))}
-              {session?.user.role === "admin" && (
-                <CreateItemMeta itemId={Number(item)} />
+              {session?.user.role?.includes("admin") && (
+                <CreateItemMeta itemId={itemId} />
               )}
               <Separator orientation="horizontal" />
 
               <div>
                 <EditableItemDescription
-                  itemId={Number(item)}
+                  itemId={itemId}
                   description={itemData.description ?? ""}
                 />
               </div>

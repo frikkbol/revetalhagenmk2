@@ -50,6 +50,7 @@ function EventDialog({ defaultEvent, ...props }: EventDialogProps) {
                       ...data,
                     }).then(() => {
                       setOpen(false);
+                      void trpcUtils.events.getEvents.invalidate();
                     });
                     return;
                   } else {
@@ -69,7 +70,11 @@ function EventDialog({ defaultEvent, ...props }: EventDialogProps) {
               >
                 {({ canSubmit }) => (
                   <CardAction className="flex w-full justify-end gap-2.5">
-                    <Button variant="ghost" onClick={() => setOpen(false)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setOpen(false)}
+                    >
                       <XIcon />
                       Avbryt
                     </Button>

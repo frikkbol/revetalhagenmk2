@@ -72,6 +72,7 @@ function NewsList() {
                     <NewsCard
                       description={article.preview ?? ""}
                       title={article.name ?? ""}
+                      image={article.image}
                       author={{
                         role: article.author?.role ?? "user",
                         image: article.author?.image ?? "",
