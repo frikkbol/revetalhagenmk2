@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { adminProcedure, createTRPCRouter, publicProcedure } from "../trpc";
 import { pageContent } from "@/server/db/schema";
+import { deleteRemovedImages } from "@/server/uploadthing";
 import { eq } from "drizzle-orm";
 
 export const cmsRouter = createTRPCRouter({
@@ -38,14 +39,19 @@ export const cmsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("SLUG: ", input.slug);
+      const nextImage =
+        input.content.image && input.content.image.length > 0
+          ? input.content.image
+          : undefined;
+
       const created = await ctx.db.insert(pageContent).values({
         slug: input.slug,
         order: input.order,
-        content: input.content,
+        content: {
+          ...input.content,
+          image: nextImage,
+        },
       });
-
-      console.log("Created content:", created);
 
       return created;
     }),
@@ -64,14 +70,33 @@ export const cmsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.pageContent.findFirst({
+        where: eq(pageContent.id, input.id),
+      });
+
+      const nextImage =
+        input.content.image && input.content.image.length > 0
+          ? input.content.image
+          : undefined;
+
       const updated = await ctx.db
         .update(pageContent)
         .set({
           slug: input.slug,
           order: input.order,
-          content: input.content,
+          content: {
+            ...input.content,
+            image: nextImage,
+          },
         })
         .where(eq(pageContent.id, input.id));
+
+      if (existing) {
+        await deleteRemovedImages({
+          previousImage: existing.content.image,
+          nextImage: nextImage ?? null,
+        });
+      }
 
       return updated;
     }),
@@ -85,7 +110,14 @@ export const cmsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const deleted = await ctx.db
         .delete(pageContent)
-        .where(eq(pageContent.id, input.id));
+        .where(eq(pageContent.id, input.id))
+        .returning();
+
+      if (deleted[0]) {
+        await deleteRemovedImages({
+          previousImage: deleted[0].content.image,
+        });
+      }
 
       return deleted;
     }),

@@ -1,15 +1,24 @@
 import Hero from "@/components/screen/hero";
 import PromotionalVideo from "@/components/screen/promotional-video";
 import LandingEventList from "@/components/ui/landing-event-list";
+import LandingNewsList from "@/components/ui/landing-news-list";
 import { api, HydrateClient } from "@/trpc/server";
 
 export default async function Home() {
   // if (typeof window === "undefined") {
   //   void api.post.getLatest.prefetch();
   // }
-  const events = await api.events.getEvents({
-    from: new Date(),
-  });
+  const [events, latestNews] = await Promise.all([
+    api.events.getEvents({
+      from: new Date(),
+    }),
+    api.news.getLatest({
+      limit: 3,
+    }),
+    api.cms.getContent.prefetch({
+      slug: "hero-description",
+    }),
+  ]);
 
   return (
     <HydrateClient>
@@ -29,13 +38,22 @@ export default async function Home() {
           </div>
         </section>
 
-        <div className="mx-auto min-h-full w-full max-w-[90rem] px-1 sm:px-8">
-          <div className="my-5 flex flex-col items-center gap-20 sm:my-20">
-            <PromotionalVideo />
+        <div className="mx-auto w-full max-w-[90rem] px-1 py-5 sm:px-8 sm:py-12">
+          <PromotionalVideo />
+        </div>
+
+        <section className="bg-accent/50 border-border/60 w-full border-y py-16 md:py-24">
+          <div className="mx-auto w-full max-w-[90rem] px-1 sm:px-8">
+            <LandingNewsList articles={latestNews} />
+          </div>
+        </section>
+
+        <section className="w-full py-16 md:py-24">
+          <div className="mx-auto w-full max-w-[90rem] px-1 sm:px-8">
             <LandingEventList events={events} />
           </div>
-          {/* <AboutUs /> */}
-        </div>
+        </section>
+        {/* <AboutUs /> */}
       </div>
     </HydrateClient>
   );

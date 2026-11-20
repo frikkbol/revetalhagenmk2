@@ -10,7 +10,7 @@ import { Video } from "../video";
 
 const PromotionalVideo = () => {
   return (
-    <section className="relative w-full overflow-hidden py-12 md:py-24">
+    <section className="relative w-full py-12 md:py-24">
       {/* Decorative Background Element */}
       <div className="bg-secondary/30 absolute top-1/2 left-1/2 -z-10 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl" />
 

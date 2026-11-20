@@ -10,11 +10,15 @@ type HeroImageProps = {
   cardContent?: React.ReactNode;
   cardContentLoading?: boolean;
   src: string;
+  alt?: string;
+  imageOverlay?: React.ReactNode;
 };
 const HeroImage = ({
   cardContent,
   cardContentLoading,
   src,
+  alt = "Lånehuset",
+  imageOverlay,
 }: HeroImageProps) => {
   return (
     <motion.div
@@ -33,14 +37,17 @@ const HeroImage = ({
       }}
       className="bg-card/95 border-border/70 shadow-primary/10 relative col-start-2 row-start-2 flex w-full flex-col overflow-hidden rounded-3xl border shadow-xl backdrop-blur-md md:overflow-visible md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-blur-none"
     >
-      <Image
-        className="mx-auto h-56 w-full object-cover sm:h-72 md:mx-0 md:h-[27rem] md:rounded-[2.25rem] md:shadow-2xl md:shadow-black/15 md:ring-1 md:ring-black/10"
-        src={src}
-        alt="Lånehuset"
-        height={2000}
-        width={2000}
-        priority
-      />
+      <div className="relative w-full">
+        <Image
+          className="mx-auto h-56 w-full object-cover sm:h-72 md:mx-0 md:h-[27rem] md:rounded-[2.25rem] md:shadow-2xl md:shadow-black/15 md:ring-1 md:ring-black/10"
+          src={src}
+          alt={alt}
+          height={2000}
+          width={2000}
+          priority
+        />
+        {imageOverlay}
+      </div>
       <AnimatePresence>
         <SlideAnimation
           direction="up"

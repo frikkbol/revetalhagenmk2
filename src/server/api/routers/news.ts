@@ -6,6 +6,36 @@ import { eq } from "drizzle-orm";
 import { sendNewsletter } from "@/server/email/newsletter";
 
 export const newsRouter = createTRPCRouter({
+  getLatest: publicProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(20).default(3),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const limit = input?.limit ?? 3;
+
+      return ctx.db.query.news.findMany({
+        orderBy: (news, { desc }) => [desc(news.createdAt), desc(news.id)],
+        columns: {
+          author: false,
+        },
+        with: {
+          author: {
+            columns: {
+              id: true,
+              name: true,
+              image: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+        limit,
+      });
+    }),
   getAllInfinite: publicProcedure
     .input(
       z.object({

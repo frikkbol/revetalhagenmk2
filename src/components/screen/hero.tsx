@@ -4,28 +4,139 @@ import { cn } from "@/lib/utils";
 import { authClient } from "@/server/auth/client";
 import { api } from "@/trpc/react";
 import { motion } from "framer-motion";
-import { ArrowRightIcon, ExternalLink } from "lucide-react";
+import {
+  ArrowRightIcon,
+  ExternalLink,
+  ImagePlusIcon,
+  Loader2Icon,
+  SaveIcon,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 import EditableParagraph from "../editable-paragraph";
 import HeroImage from "../hero-image";
 import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import { ImageUpload } from "../ui/image-upload";
+
+const DEFAULT_HERO_IMAGE = "/images/laahnehuset.jpg";
 
 function Hero({ className, ...props }: React.HTMLProps<HTMLDivElement>) {
   const { data: session } = authClient.useSession();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const isAdmin = mounted && (session?.user?.role?.includes("admin") ?? false);
+
   const { data: paragraph, isLoading: paragraphLoading } =
     api.cms.getContent.useQuery({
       slug: "hero-description",
     });
   const trpcUtils = api.useUtils();
-  const { mutate } = api.cms.updateContent.useMutation({
-    onSuccess: () => {
-      void trpcUtils.cms.getContent.invalidate({
-        slug: "hero-description",
-      });
-    },
-  });
+
+  const [editImageOpen, setEditImageOpen] = useState(false);
+  const [draftImage, setDraftImage] = useState("");
+
+  const heroContent = paragraph?.[0];
+  const customHeroImage =
+    heroContent?.content.image && heroContent.content.image.length > 0
+      ? heroContent.content.image
+      : undefined;
+  const heroImageSrc = customHeroImage ?? DEFAULT_HERO_IMAGE;
+
+  const { mutateAsync: updateContent, isPending: isUpdating } =
+    api.cms.updateContent.useMutation({
+      onSuccess: () => {
+        void trpcUtils.cms.getContent.invalidate({
+          slug: "hero-description",
+        });
+      },
+    });
+
+  const { mutateAsync: createContent, isPending: isCreating } =
+    api.cms.createContent.useMutation({
+      onSuccess: () => {
+        void trpcUtils.cms.getContent.invalidate({
+          slug: "hero-description",
+        });
+      },
+    });
+
+  const isSaving = isUpdating || isCreating;
+
+  const handleOpenImageDialog = () => {
+    setDraftImage(customHeroImage ?? "");
+    setEditImageOpen(true);
+  };
+
+  const handleSaveDescription = async (content: string) => {
+    try {
+      if (heroContent?.id) {
+        await updateContent({
+          id: heroContent.id,
+          content: {
+            content,
+            title: heroContent.content.title ?? "",
+            image: customHeroImage,
+          },
+          slug: "hero-description",
+        });
+      } else {
+        await createContent({
+          slug: "hero-description",
+          content: {
+            content,
+            title: "",
+            image: customHeroImage,
+          },
+        });
+      }
+      toast.success("Innholdet ble oppdatert");
+    } catch {
+      toast.error("Kunne ikke oppdatere innholdet");
+    }
+  };
+
+  const handleSaveImage = async () => {
+    const trimmed = draftImage.trim();
+    const nextImage = trimmed.length > 0 ? trimmed : undefined;
+    try {
+      if (heroContent?.id) {
+        await updateContent({
+          id: heroContent.id,
+          slug: "hero-description",
+          content: {
+            title: heroContent.content.title ?? "",
+            content: heroContent.content.content ?? "",
+            image: nextImage,
+          },
+        });
+      } else {
+        await createContent({
+          slug: "hero-description",
+          content: {
+            title: "",
+            content: "",
+            image: nextImage,
+          },
+        });
+      }
+      setEditImageOpen(false);
+      toast.success("Forsidebilde oppdatert");
+    } catch {
+      toast.error("Kunne ikke oppdatere forsidebilde");
+    }
+  };
 
   return (
     <div className="relative flex w-full items-center pt-24 pb-10 md:min-h-[92vh] md:pt-28 md:pb-28">
@@ -87,23 +198,29 @@ function Hero({ className, ...props }: React.HTMLProps<HTMLDivElement>) {
           </h1>
         </motion.div>
         <HeroImage
-          src="/images/laahnehuset.jpg"
+          src={heroImageSrc}
+          imageOverlay={
+            isAdmin ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={handleOpenImageDialog}
+                className="bg-background/85 text-foreground hover:bg-background absolute top-3 right-3 z-10 rounded-full shadow-md backdrop-blur-md md:top-4 md:right-4"
+              >
+                <ImagePlusIcon className="size-4" />
+                Endre bilde
+              </Button>
+            ) : undefined
+          }
           cardContent={
             <>
               <EditableParagraph
                 className="text-foreground/90 line-clamp-5 w-full text-sm leading-relaxed md:line-clamp-[7] md:text-base"
-                content={paragraph?.[0]?.content.content}
-                admin={session?.user?.role === "admin"}
+                content={heroContent?.content.content}
+                admin={isAdmin}
                 onChange={(content) => {
-                  if (!paragraph?.[0]?.id) return;
-                  mutate({
-                    id: paragraph?.[0]?.id,
-                    content: {
-                      content,
-                      title: "",
-                    },
-                    slug: "hero-description",
-                  });
+                  void handleSaveDescription(content);
                 }}
               />
               <div className="flex flex-wrap items-center gap-2.5 pt-1">
@@ -154,6 +271,43 @@ function Hero({ className, ...props }: React.HTMLProps<HTMLDivElement>) {
           />
         </Link>
       </div>
+
+      {isAdmin && (
+        <Dialog open={editImageOpen} onOpenChange={setEditImageOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Endre forsidebilde</DialogTitle>
+              <DialogDescription>
+                Last opp et nytt bilde til forsiden. Fjerner du bildet, brukes
+                standardbildet.
+              </DialogDescription>
+            </DialogHeader>
+            <ImageUpload value={draftImage} onChange={setDraftImage} />
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSaving}
+                onClick={() => setEditImageOpen(false)}
+              >
+                Avbryt
+              </Button>
+              <Button
+                type="button"
+                disabled={isSaving}
+                onClick={() => void handleSaveImage()}
+              >
+                {isSaving ? (
+                  <Loader2Icon className="animate-spin" />
+                ) : (
+                  <SaveIcon />
+                )}
+                Lagre
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
