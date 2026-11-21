@@ -8,8 +8,17 @@ import BookingStatusToggle from "@/components/ui/booking-status-toggle";
 import { auth } from "@/server/auth";
 import { api } from "@/trpc/server";
 import type { PortableTextBlock } from "@portabletext/editor";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+
+export const metadata: Metadata = {
+  title: "Bookingstatus",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

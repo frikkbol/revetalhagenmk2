@@ -1,31 +1,87 @@
-"use server";
-import type { PageProps } from ".next/types/app/arrangementer/page";
 import DynamicBreadcrumbs from "@/components/dynamic-breadcrumbs";
 import SlideAnimation from "@/components/ui/animated/slide-animation";
 import EventContextMenu from "@/components/ui/event-context-menu";
 import PortableRenderer from "@/components/ui/portable-text/render-components/PortableRenderer";
+import { formatEventDateRange } from "@/lib/event-date-format";
 import { auth } from "@/server/auth";
+import { db } from "@/server/db";
 import { api } from "@/trpc/server";
 import type { PortableTextBlock } from "@portabletext/react";
 import { HomeIcon } from "lucide-react";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Image from "next/image";
-import { redirect } from "next/navigation";
-import { formatEventDateRange } from "@/lib/event-date-format";
+import { notFound } from "next/navigation";
 
 import "quill/dist/quill.snow.css";
 
-async function Page({ params }: PageProps) {
-  // Fetch the news article using the ID from params
-  const { id } = (await params) as { id: string };
-  const data = await api.events.getById({ id: Number(id) });
+type EventPageProps = {
+  params: Promise<{ id: string }>;
+};
+
+export async function generateMetadata({
+  params,
+}: EventPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    return {
+      title: "Arrangement ikke funnet",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const ev = await db.query.event.findFirst({
+    where: (event, { eq }) => eq(event.id, numericId),
+    columns: {
+      title: true,
+      preview: true,
+      image: true,
+    },
+  });
+
+  if (!ev) {
+    return {
+      title: "Arrangement ikke funnet",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = ev.title ?? "Arrangement";
+  const trimmedPreview = ev.preview?.trim() ?? "";
+  const description =
+    trimmedPreview.length > 0
+      ? trimmedPreview
+      : "Se detaljer om dette arrangementet i Revetalhagen.";
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/arrangementer/${numericId}`,
+    },
+    openGraph: {
+      title,
+      description,
+      ...(ev.image ? { images: [{ url: ev.image, alt: title }] } : {}),
+    },
+  };
+}
+
+async function Page({ params }: EventPageProps) {
+  const { id } = await params;
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    notFound();
+  }
+
+  const data = await api.events.getById({ id: numericId });
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   if (!data) {
-    // Redirect to 404
-    redirect("/404");
+    notFound();
   }
 
   return (

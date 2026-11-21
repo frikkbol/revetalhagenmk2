@@ -4,7 +4,17 @@ import SlideAnimation from "@/components/ui/animated/slide-animation";
 import { Video } from "@/components/video";
 import { api } from "@/trpc/server";
 import { HomeIcon } from "lucide-react";
+import type { Metadata } from "next";
 import React from "react";
+
+export const metadata: Metadata = {
+  title: "Ungdomsskoleprosjektet",
+  description:
+    "Sammen med Revetal ungdomsskole skaper vi en arena for tverrfaglig, praktisk læring som bidrar til variasjon i skolehverdagen, mestring og økt motivasjon.",
+  alternates: {
+    canonical: "/ungdomsskoleprosjektet",
+  },
+};
 
 export default async function UngdomsskoleprosjektetPage() {
   const data = await api.cms.getContent({

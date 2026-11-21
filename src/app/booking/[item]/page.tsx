@@ -21,9 +21,94 @@ import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { ArrowRight, CheckIcon, TriangleAlertIcon } from "lucide-react";
 import { DynamicIcon, type IconName } from "lucide-react/dynamic";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+
+function stripToPlainText(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        const text = parsed
+          .flatMap((block) => {
+            if (
+              typeof block === "object" &&
+              block !== null &&
+              "children" in block &&
+              Array.isArray((block as { children: unknown }).children)
+            ) {
+              return (block as { children: unknown[] }).children
+                .map((c) =>
+                  typeof c === "object" &&
+                  c !== null &&
+                  "text" in c &&
+                  typeof (c as { text: unknown }).text === "string"
+                    ? (c as { text: string }).text
+                    : "",
+                )
+                .join("");
+            }
+            return "";
+          })
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim();
+        if (text) return text;
+      }
+    } catch {
+      // fall back to raw text
+    }
+  }
+  return trimmed.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ item: string }>;
+}): Promise<Metadata> {
+  const { item } = await params;
+  const itemId = Number(item);
+  if (!Number.isInteger(itemId) || itemId <= 0) {
+    return {
+      title: "Ikke funnet",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const itemData = await api.booking.getItemById({ id: itemId });
+  if (!itemData) {
+    return {
+      title: "Ikke funnet",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = itemData.name ?? "Booking";
+  const plainDesc = stripToPlainText(itemData.description);
+  const description =
+    plainDesc.length > 160
+      ? `${plainDesc.slice(0, 157)}...`
+      : plainDesc || `Book ${title} i Revetalhagen.`;
+  const firstImage = itemData.itemImage?.[0]?.url;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/booking/${itemId}`,
+    },
+    openGraph: {
+      title,
+      description,
+      ...(firstImage ? { images: [{ url: firstImage, alt: title }] } : {}),
+    },
+  };
+}
 
 async function Item({
   params,
@@ -62,14 +147,9 @@ async function Item({
     headers: await headers(),
   });
 
-  if (!itemData)
-    return (
-      <div className="flex min-h-screen w-full flex-col gap-5 px-5 pt-20 pb-10 md:px-10">
-        <span className="text-2xl font-medium">
-          Kunne ikke finne gjenstanden
-        </span>
-      </div>
-    );
+  if (!itemData) {
+    notFound();
+  }
 
   const price = `Fra ${itemData.type === ItemType.OVERNATTING ? itemData.price + itemData.personPrice : itemData.price} kroner`;
   return (

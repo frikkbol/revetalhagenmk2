@@ -2,7 +2,7 @@
 
 import { formatEventDateRange } from "@/lib/event-date-format";
 import { authClient } from "@/server/auth/client";
-import { api } from "@/trpc/react";
+import { api, type RouterOutputs } from "@/trpc/react";
 import { format, startOfWeek } from "date-fns";
 import { nb } from "date-fns/locale";
 import {
@@ -122,16 +122,25 @@ function EventListSkeleton() {
   );
 }
 
-function EventCalendar() {
+function EventCalendar({
+  initialEvents,
+}: {
+  initialEvents?: RouterOutputs["events"]["getEvents"];
+}) {
   const { data: session } = authClient.useSession();
   const from = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), []);
   const {
     data: events,
     isPending,
     isError,
-  } = api.events.getEvents.useQuery({
-    from,
-  });
+  } = api.events.getEvents.useQuery(
+    {
+      from,
+    },
+    {
+      initialData: initialEvents,
+    },
+  );
 
   const groupedEvents = useMemo(() => {
     if (!events) return [];

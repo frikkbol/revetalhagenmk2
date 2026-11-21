@@ -3,9 +3,18 @@ import AdminSidebar from "@/components/screen/admin-sidebar/admin-sidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { auth } from "@/server/auth";
 import { HomeIcon } from "lucide-react";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import React from "react";
+
+export const metadata: Metadata = {
+  title: "Admin",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 const Layout = async ({ children }: { children: React.ReactNode }) => {
   const session = await auth.api.getSession({

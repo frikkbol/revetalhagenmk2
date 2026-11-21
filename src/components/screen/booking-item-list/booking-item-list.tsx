@@ -1,28 +1,40 @@
 "use client";
-import { api } from "@/trpc/react";
+import { api, type RouterOutputs } from "@/trpc/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader } from "lucide-react";
 import { parseAsIsoDate, parseAsString, useQueryStates } from "nuqs";
 import SlideAnimation from "../../ui/animated/slide-animation";
 import BookingItemCard from "./booking-item-card";
 
-function BookingItemList() {
+type BookingItemListProps = {
+  initialItems?: RouterOutputs["booking"]["getItems"];
+};
+
+function BookingItemList({ initialItems }: BookingItemListProps) {
   const [filterQueries] = useQueryStates({
     type: parseAsString,
     from: parseAsIsoDate,
     to: parseAsIsoDate,
   });
+  const hasFilters = Boolean(
+    filterQueries.type ?? filterQueries.from ?? filterQueries.to,
+  );
   const {
     data: items,
     isFetching,
     isRefetching,
     isError,
     isRefetchError,
-  } = api.booking.getItems.useQuery({
-    type: filterQueries.type ? parseInt(filterQueries.type) : undefined,
-    from: filterQueries.from ?? undefined,
-    to: filterQueries.to ?? undefined,
-  });
+  } = api.booking.getItems.useQuery(
+    {
+      type: filterQueries.type ? parseInt(filterQueries.type) : undefined,
+      from: filterQueries.from ?? undefined,
+      to: filterQueries.to ?? undefined,
+    },
+    {
+      initialData: !hasFilters ? initialItems : undefined,
+    },
+  );
   const itemQuery = new URLSearchParams();
   if (filterQueries.from) {
     itemQuery.set("from", filterQueries.from.toISOString());

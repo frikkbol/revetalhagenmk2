@@ -1,5 +1,5 @@
 "use client";
-import { api } from "@/trpc/react";
+import { api, type RouterOutputs } from "@/trpc/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader } from "lucide-react";
 import Link from "next/link";
@@ -10,7 +10,11 @@ import SlideAnimation from "./animated/slide-animation";
 import { Button } from "./button";
 import NewsCard from "./news-card";
 
-function NewsList() {
+type NewsListProps = {
+  initialPage?: RouterOutputs["news"]["getAllInfinite"];
+};
+
+function NewsList({ initialPage }: NewsListProps) {
   const [filters] = useQueryStates({
     orderBy: parseAsStringEnum<TimeDirection>(
       Object.values(TimeDirection),
@@ -18,6 +22,8 @@ function NewsList() {
     q: parseAsString,
   });
   const [debouncedFilters] = useDebounce(filters, 500);
+  const queryText = debouncedFilters.q ?? "";
+  const isDefaultQuery = queryText === "";
 
   const {
     data: news,
@@ -25,13 +31,21 @@ function NewsList() {
     fetchNextPage,
     isFetchingNextPage,
     isFetching,
+    isError,
   } = api.news.getAllInfinite.useInfiniteQuery(
     {
       limit: 9,
-      query: debouncedFilters.q ?? "",
+      query: queryText,
     },
     {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
+      initialData:
+        isDefaultQuery && initialPage
+          ? {
+              pages: [initialPage],
+              pageParams: [undefined],
+            }
+          : undefined,
     },
   );
   return (
@@ -47,7 +61,18 @@ function NewsList() {
             </SlideAnimation>
           )}
 
-          {!news?.pages.flatMap((i) => i.news).length &&
+          {isError && !news?.pages.length && (
+            <SlideAnimation
+              direction="up"
+              key="error"
+              className="flex h-[300px] items-center justify-center text-center"
+            >
+              Kunne ikke laste inn nyheter akkurat nå. Prøv igjen senere.
+            </SlideAnimation>
+          )}
+
+          {!isError &&
+            !news?.pages.flatMap((i) => i.news).length &&
             !(isFetching || isFetchingNextPage) && (
               <SlideAnimation
                 direction="up"

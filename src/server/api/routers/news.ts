@@ -103,14 +103,14 @@ export const newsRouter = createTRPCRouter({
         .leftJoin(user, eq(news.author, user.id))
         .where(eq(news.id, input.id));
 
-      if (!newsWithAuthor) {
-        throw new Error("News not found");
+      if (!newsWithAuthor[0]) {
+        return undefined;
       }
 
       // Update view count
       await ctx.db
         .update(news)
-        .set({ views: (newsWithAuthor[0]?.news.views ?? 0) + 1 })
+        .set({ views: (newsWithAuthor[0].news.views ?? 0) + 1 })
         .where(eq(news.id, input.id));
 
       return newsWithAuthor[0];

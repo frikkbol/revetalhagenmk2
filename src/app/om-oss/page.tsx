@@ -1,10 +1,18 @@
-"use server";
-
 import DynamicBreadcrumbs from "@/components/dynamic-breadcrumbs";
 import HybridParagraph from "@/components/screen/om-oss/hybrid-paragraph";
 import SlideAnimation from "@/components/ui/animated/slide-animation";
 import { api } from "@/trpc/server";
 import { HomeIcon } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Om oss",
+  description:
+    "Lær mer om Revetalhagen – et grønt, åpent og inkluderende møtested i Revetal med grønnsaksdyrking, skolehage og fellesskap.",
+  alternates: {
+    canonical: "/om-oss",
+  },
+};
 
 const About = async () => {
   const data = await api.cms.getContent({

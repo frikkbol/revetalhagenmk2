@@ -3,6 +3,16 @@ import PromotionalVideo from "@/components/screen/promotional-video";
 import LandingEventList from "@/components/ui/landing-event-list";
 import LandingNewsList from "@/components/ui/landing-news-list";
 import { api, HydrateClient } from "@/trpc/server";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Revetalhagen",
+  description:
+    "Revetalhagen er et åpent og inkluderende møtested i Revetal. Se kommende arrangementer, les siste nytt, lei selskapslokale eller bli medlem.",
+  alternates: {
+    canonical: "/",
+  },
+};
 
 export default async function Home() {
   // if (typeof window === "undefined") {

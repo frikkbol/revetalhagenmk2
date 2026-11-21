@@ -13,9 +13,34 @@ import { Toaster } from "@/components/ui/sonner";
 import { Loader } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Revetalhagen",
-  description: "Et sted for alle å være",
+  metadataBase: new URL("https://www.revetalhagen.no"),
+  title: {
+    default: "Revetalhagen",
+    template: "%s | Revetalhagen",
+  },
+  description:
+    "Revetalhagen er et åpent, livssynsnøytralt og inkluderende møtested i Revetal med skolehage, dyrking, selskapslokale, overnatting og arrangementer for alle aldre.",
   icons: [{ rel: "icon", url: "/images/nakuhel-logo.webp" }],
+  openGraph: {
+    type: "website",
+    locale: "nb_NO",
+    url: "https://www.revetalhagen.no",
+    siteName: "Revetalhagen",
+    title: "Revetalhagen",
+    description:
+      "Revetalhagen er et åpent, livssynsnøytralt og inkluderende møtested i Revetal med skolehage, dyrking, selskapslokale, overnatting og arrangementer for alle aldre.",
+    images: [
+      {
+        url: "/images/laahnehuset.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Revetalhagen",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 const poppins = Poppins({
@@ -28,7 +53,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${poppins.variable} min-h-screen max-w-screen`}>
+    <html lang="nb" className={`${poppins.variable} min-h-screen max-w-screen`}>
       <body>
         <Analytics />
         <NuqsAdapter>

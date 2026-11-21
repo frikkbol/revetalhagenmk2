@@ -3,9 +3,18 @@ import NewsEditor from "@/components/screen/news-editor";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/server/auth";
 import { ArrowLeftIcon, HomeIcon } from "lucide-react";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
+export const metadata: Metadata = {
+  title: "Ny artikkel",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function NewNewsPage() {
   const session = await auth.api.getSession({

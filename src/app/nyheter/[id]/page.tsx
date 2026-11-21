@@ -1,23 +1,91 @@
-import type { PageProps } from ".next/types/app/nyheter/[id]/page";
 import DynamicBreadcrumbs from "@/components/dynamic-breadcrumbs";
 import SlideAnimation from "@/components/ui/animated/slide-animation";
 import NewsContextMenu from "@/components/ui/news-context-menu";
 import PortableRenderer from "@/components/ui/portable-text/render-components/PortableRenderer";
 import { auth } from "@/server/auth";
+import { db } from "@/server/db";
 import { api } from "@/trpc/server";
 import type { PortableTextBlock } from "@portabletext/editor";
 import { format } from "date-fns";
 import { nb } from "date-fns/locale";
 import { HomeIcon } from "lucide-react";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Image from "next/image";
+import { notFound } from "next/navigation";
 
 import "quill/dist/quill.snow.css";
 
-async function Page({ params }: PageProps) {
-  // Fetch the news article using the ID from params
-  const { id } = (await params) as { id: string };
-  const data = await api.news.getById({ id: Number(id) });
+type NewsPageProps = {
+  params: Promise<{ id: string }>;
+};
+
+export async function generateMetadata({
+  params,
+}: NewsPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    return {
+      title: "Nyhet ikke funnet",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const article = await db.query.news.findFirst({
+    where: (news, { eq }) => eq(news.id, numericId),
+    columns: {
+      name: true,
+      preview: true,
+      image: true,
+    },
+  });
+
+  if (!article) {
+    return {
+      title: "Nyhet ikke funnet",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = article.name ?? "Nyhetsartikkel";
+  const trimmedPreview = article.preview?.trim() ?? "";
+  const description =
+    trimmedPreview.length > 0
+      ? trimmedPreview
+      : "Les denne nyhetsartikkelen fra Revetalhagen.";
+  const image =
+    article.image && article.image.length > 0
+      ? article.image
+      : "/images/hagen_wide.jpg";
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/nyheter/${numericId}`,
+    },
+    openGraph: {
+      type: "article",
+      title,
+      description,
+      images: [{ url: image, alt: title }],
+    },
+  };
+}
+
+async function Page({ params }: NewsPageProps) {
+  const { id } = await params;
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    notFound();
+  }
+
+  const data = await api.news.getById({ id: numericId });
+  if (!data?.news) {
+    notFound();
+  }
+
   const session = await auth.api.getSession({
     headers: await headers(),
   });

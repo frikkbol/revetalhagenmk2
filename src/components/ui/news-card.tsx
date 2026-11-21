@@ -93,7 +93,9 @@ function NewsCard({ author, title, description, date, image }: NewsCardProps) {
         <CardHeader className="w-full px-1">
           <CardTitle>{title}</CardTitle>
           <CardDescription className="line-clamp-3">
-            {format(date, "Pp", { locale: nb })}
+            {date && !Number.isNaN(new Date(date).getTime())
+              ? format(new Date(date), "Pp", { locale: nb })
+              : ""}
           </CardDescription>
         </CardHeader>
       </div>
