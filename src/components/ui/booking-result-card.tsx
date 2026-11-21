@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 type BookingResultCardProps = {
   rejectionReason?: string;
   variant?: "confirmed" | "rejected";
+  isPaid?: boolean;
 };
 
 function parseRejectionReason(
@@ -37,6 +38,7 @@ function parseRejectionReason(
 function BookingResultCard({
   rejectionReason,
   variant = "confirmed",
+  isPaid = false,
 }: BookingResultCardProps) {
   const parsedRejectionReason =
     variant === "rejected" ? parseRejectionReason(rejectionReason) : null;
@@ -57,14 +59,17 @@ function BookingResultCard({
           )}
           {variant === "confirmed" && (
             <>
-              <CheckIcon /> Søknaden er godkjent
+              <CheckIcon />{" "}
+              {isPaid ? "Bookingen er godkjent og betalt" : "Søknaden er godkjent"}
             </>
           )}
         </CardTitle>
         <CardDescription>
           {variant === "rejected"
             ? "Søknaden din ble avslått. Begrunnelse for dette er oppgitt nedenfor."
-            : "Søknaden din er godkjent. Du vil motta en epost med mer informasjon."}
+            : isPaid
+              ? "Betalingen din er registrert, og alt er klart for oppholdet ditt."
+              : "Søknaden din er godkjent. Du vil motta en epost med mer informasjon."}
         </CardDescription>
       </CardHeader>
       <Separator />
@@ -82,11 +87,18 @@ function BookingResultCard({
                 Vi har nå bekreftet at huset er tilgjengelig, og med det ønsker
                 vi deg velkommen!
               </span>
-              <span>
-                Du vil snart motta en mail med betalingsinstrukser, og annen
-                relevant informasjon rundt bookingen din. Hvis du lurer på noe i
-                mellomtiden, er det bare å ta kontakt.
-              </span>
+              {isPaid ? (
+                <span>
+                  Betalingen er registrert, og alt er klart for oppholdet ditt.
+                  Hvis du lurer på noe i mellomtiden, er det bare å ta kontakt.
+                </span>
+              ) : (
+                <span>
+                  Du vil snart motta en mail med betalingsinstrukser, og annen
+                  relevant informasjon rundt bookingen din. Hvis du lurer på noe
+                  i mellomtiden, er det bare å ta kontakt.
+                </span>
+              )}
             </>
           )}
           <Link href="mailto:post@revetalhagen.no" className="w-fit">

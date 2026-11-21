@@ -1,9 +1,12 @@
 import React from "react";
+import { Badge } from "./badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import type { booking } from "@/server/db/schema";
 import { format } from "date-fns";
 import {
   BanknoteIcon,
+  CheckCircle2,
+  CircleX,
   ClockIcon,
   Mail,
   MessageSquareIcon,
@@ -31,11 +34,24 @@ function BookingReviewMeta({ booking }: BookingReviewMetaProps) {
             til <strong>{format(booking.to, "PPPP", { locale: nb })}</strong>
           </span>
         </span>
-        <span className="flex items-center gap-2.5">
+        <span className="flex flex-wrap items-center gap-2.5">
           <BanknoteIcon />
           <span>
             <strong>{booking.price} kr</strong>
           </span>
+          {booking.isPaid ? (
+            <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+              <CheckCircle2 className="size-3.5" />
+              Betalt
+              {booking.paidAt &&
+                ` (${format(booking.paidAt, "dd.MM.yyyy", { locale: nb })})`}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-muted-foreground">
+              <CircleX className="size-3.5" />
+              Ikke betalt
+            </Badge>
+          )}
         </span>
         {booking.personCount != null && (
           <span className="flex items-center gap-2.5">

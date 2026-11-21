@@ -187,6 +187,8 @@ export const booking = createTable("booking", (d) => ({
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
   status: bookingStatusEnum().notNull().default("pending"),
+  isPaid: d.boolean().notNull().default(false),
+  paidAt: d.timestamp({ withTimezone: true }),
   message: d.text(),
 }));
 

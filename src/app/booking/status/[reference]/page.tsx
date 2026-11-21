@@ -1,4 +1,5 @@
 import BookingContact from "@/components/ui/booking-contact";
+import BookingPaymentToggle from "@/components/ui/booking-payment-toggle";
 import BookingResultCard from "@/components/ui/booking-result-card";
 import BookingReviewMeta from "@/components/ui/booking-review-meta";
 import BookingStatusHero from "@/components/ui/booking-status-hero";
@@ -73,13 +74,17 @@ async function BookingStatus({
             <BookingResultCard
               rejectionReason={bookingData.rejectionReason ?? "[]"}
               variant={bookingData.status}
+              isPaid={bookingData.isPaid}
             />
           )}
 
           {bookingData.status !== "rejected" &&
             bookingData.status !== "cancelled" && (
               <>
-                <BookingStatusProgress status={bookingData.status} />
+                <BookingStatusProgress
+                  status={bookingData.status}
+                  isPaid={bookingData.isPaid}
+                />
                 <BookingContact className="mt-5" />
               </>
             )}
@@ -93,6 +98,12 @@ async function BookingStatus({
               ...bookingData,
               item: bookingData.item.id,
             }}
+          />
+          <BookingPaymentToggle
+            bookingId={bookingData.id}
+            isPaid={bookingData.isPaid}
+            paidAt={bookingData.paidAt}
+            hasEmail={Boolean(bookingData.email)}
           />
           {/* <BookingCalendarDialog
             bookings={[

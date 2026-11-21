@@ -6,6 +6,7 @@ import { CalculatePrice } from "@/lib/booking/price";
 import { booking, BookingStates, item, itemMeta } from "@/server/db/schema";
 import sendBookingConfirmations, {
   sendBookingConfirmationsToAdmin,
+  sendBookingPaidConfirmation,
   sendBookingStatusUpdate,
 } from "@/server/email/booking";
 import { TRPCError } from "@trpc/server";
@@ -464,6 +465,65 @@ export const bookingRouter = createTRPCRouter({
           });
         } catch (error) {
           console.error("Failed to send booking status update email:", error);
+        }
+      }
+
+      return updatedBooking;
+    }),
+  updateBookingPaymentStatus: adminProcedure
+    .input(
+      z.object({
+        bookingId: z.number(),
+        isPaid: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { bookingId, isPaid } = input;
+
+      const existingBooking = await ctx.db.query.booking.findFirst({
+        where: eq(booking.id, bookingId),
+        with: {
+          item: true,
+        },
+      });
+
+      if (!existingBooking) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Bookingen ble ikke funnet",
+        });
+      }
+
+      const updated = await ctx.db
+        .update(booking)
+        .set({
+          isPaid,
+          paidAt: isPaid ? new Date() : null,
+        })
+        .where(eq(booking.id, bookingId))
+        .returning();
+
+      const updatedBooking = updated[0];
+      if (!updatedBooking) return undefined;
+
+      if (!existingBooking.isPaid && isPaid && updatedBooking.email) {
+        try {
+          await sendBookingPaidConfirmation({
+            email: updatedBooking.email,
+            name: updatedBooking.name ?? "",
+            from: updatedBooking.from,
+            to: updatedBooking.to,
+            totalPrice: updatedBooking.price,
+            bookingReference: updatedBooking.reference,
+            item: {
+              name: existingBooking.item?.name ?? "Ukjent gjenstand",
+            },
+          });
+        } catch (error) {
+          console.error(
+            "Failed to send booking paid confirmation email:",
+            error,
+          );
         }
       }
 

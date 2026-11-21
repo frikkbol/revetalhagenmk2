@@ -11,6 +11,7 @@ import {
 
 type BookingStatusProgressProps = {
   status: typeof booking.$inferSelect.status;
+  isPaid?: boolean;
 };
 
 const steps: { step: number; title: string; description: string }[] = [
@@ -42,14 +43,16 @@ const StatusStepMap: Partial<
   completed: 4,
 };
 
-function BookingStatusProgress({ status }: BookingStatusProgressProps) {
+function BookingStatusProgress({
+  status,
+  isPaid = false,
+}: BookingStatusProgressProps) {
+  const stepValue =
+    status === "confirmed" && isPaid ? 4 : (StatusStepMap[status] ?? 1);
+
   return (
     <div className="mx-auto">
-      <Stepper
-        defaultValue={1}
-        orientation="vertical"
-        value={StatusStepMap[status] ?? 1}
-      >
+      <Stepper defaultValue={1} orientation="vertical" value={stepValue}>
         {steps.map(({ step, description, title }) => (
           <StepperItem
             className="relative items-start [&:not(:last-child)]:flex-1"

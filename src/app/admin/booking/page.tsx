@@ -5,6 +5,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BookingStatusMap } from "@/lib/booking-status-map";
@@ -13,6 +14,8 @@ import { format } from "date-fns";
 import {
   ArrowRightIcon,
   CalendarIcon,
+  CheckCircle2,
+  CircleX,
   ListCheck,
   UserIcon,
 } from "lucide-react";
@@ -48,8 +51,21 @@ const Booking = async () => {
         {format(booking.from, "dd.MM.yyyy")} -{" "}
         {format(booking.to, "dd.MM.yyyy")}
       </span>
-      <span className="flex flex-row items-center gap-1">
-        <ListCheck size={16} /> {BookingStatusMap[booking.status]}
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="flex flex-row items-center gap-1">
+          <ListCheck size={16} /> {BookingStatusMap[booking.status]}
+        </span>
+        {booking.isPaid ? (
+          <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+            <CheckCircle2 className="size-3" />
+            Betalt
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-muted-foreground">
+            <CircleX className="size-3" />
+            Ikke betalt
+          </Badge>
+        )}
       </span>
     </div>
   );

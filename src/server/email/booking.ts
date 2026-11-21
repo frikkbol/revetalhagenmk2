@@ -1,6 +1,7 @@
 import "server-only";
 import BookingConfirmationAdminTemplate from "emails/booking-confirmation-admin-template";
 import BookingConfirmationTemplate from "emails/booking-confirmation-template";
+import BookingPaidTemplate from "emails/booking-paid-template";
 import BookingStatusTemplate from "emails/booking-status-template";
 
 import { Resend } from "resend";
@@ -105,6 +106,37 @@ export const sendBookingStatusUpdate = async ({
 
   if (error) {
     console.error("Failed to send booking status update email:", error);
+    return error;
+  }
+
+  return data;
+};
+
+export const sendBookingPaidConfirmation = async ({
+  from = new Date(),
+  item = { name: "Ukjent gjenstand" },
+  name = "John Doe",
+  to = new Date(),
+  totalPrice = 600,
+  bookingReference = "test-reference",
+  email,
+}: SendBookingConfirmationsProps) => {
+  const { data, error } = await resend.emails.send({
+    from: "Revetalhagen (booking) <booking@revetalhagen.no>",
+    to: [email],
+    subject: "Betaling mottatt for din booking",
+    react: BookingPaidTemplate({
+      from,
+      item,
+      name,
+      to,
+      totalPrice,
+      bookingReference,
+    }),
+  });
+
+  if (error) {
+    console.error("Failed to send booking paid confirmation email:", error);
     return error;
   }
 
